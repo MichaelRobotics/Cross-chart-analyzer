@@ -53,6 +53,27 @@
         #root {
              min-height: 100vh;
         }
+        /* Modal styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: #1e293b; /* slate-800 */
+            padding: 2rem;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); /* shadow-2xl */
+            width: 90%;
+            max-width: 500px;
+        }
     </style>
 </head>
 <body>
@@ -60,8 +81,6 @@
 
     <script type="text/babel">
         // --- React Application Code ---
-        // (Copied and adapted from your React component structure)
-
         const { useState, useEffect, useRef } = React;
 
         // --- Configuration & Constants ---
@@ -71,6 +90,11 @@
         const APP_SUBTITLE_DEMO_ONLY = "Uruchom test z danymi demonstracyjnymi, aby zobaczyć symulowaną analizę.";
 
         const PREDEFINED_TOPICS = [
+            { 
+                id: "holistic",
+                title: "Analiza Holistyczna",
+                question: "Provide a comprehensive holistic analysis of the provided CSV data, considering all aspects such as bottlenecks, workstation utilization, quality, changeovers, employee performance, costs, energy consumption, and downtime. Synthesize these insights into an overall assessment of the process, highlighting key interdependencies, major strengths, critical weaknesses, and strategic recommendations for improvement. Deliver the summary in Polish."
+            },
             { id: "bottlenecks", title: "Wąskie Gardła w Procesie", question: "Analyze the provided CSV data for potential bottlenecks. Identify where they might occur, their impact, and the largest bottleneck. Provide a concise summary in Polish." },
             { id: "utilization", title: "Wykorzystanie Stanowisk Pracy", question: "Based on the CSV data, analyze workstation utilization. Note any under/overutilization and average/lowest availability if inferable. Provide a concise summary in Polish." },
             { id: "quality", title: "Jakość", question: "Examine the CSV for insights into product/process quality. Indicate any quality issues or their absence. Provide a concise summary in Polish." },
@@ -92,6 +116,15 @@ ST5,Operational,180,28,18,2800,1400,1.5,1.0,35,85
         const SIMULATED_ANALYSIS_RESULTS = PREDEFINED_TOPICS.map(topic => {
             let simulatedAnswer = `To jest symulowana odpowiedź dla tematu: "${topic.title}". `;
             switch (topic.id) {
+                case "holistic": 
+                    simulatedAnswer += "Przeprowadzając całościową ocenę na podstawie danych demonstracyjnych, można zauważyć kilka kluczowych obszarów. " +
+                                       "Stanowisko ST2 (w konserwacji) oraz ST4 (bezczynne z długim czasem przetwarzania) jawią się jako główne wąskie gardła, negatywnie wpływając na ogólny przepływ i generując koszty (szczególnie 8-godzinny przestój ST2). " +
+                                       "Wykorzystanie stanowisk ST3 (90%) i ST5 (85%) jest wysokie, co jest pozytywnym sygnałem, jednak ST4 (40%) pozostaje znacznie niedociążone. " +
+                                       "Jakość produktów wydaje się być na ogół pod kontrolą, chociaż ST4 z najwyższym wskaźnikiem defektów (2.0%) przy relatywnie niskiej liczbie wykonanych zadań może wymagać bliższej obserwacji. " +
+                                       "Pod względem kosztów, ST3 generuje najwyższe koszty materiałowe i pracy, a wspomniany przestój ST2 również stanowi znaczący ukryty koszt. " +
+                                       "Ogólnie rzecz biorąc, proces wykazuje potencjał do optymalizacji, zwłaszcza poprzez usprawnienie zarządzania konserwacją (minimalizacja przestojów ST2) oraz lepsze zbalansowanie obciążenia pracą (szczególnie dla ST4). " +
+                                       "Brak szczegółowych danych dotyczących przezbrojeń, efektywności pracowników czy zużycia energii w tym demo ogranicza pełniejszą ocenę tych aspektów, ale wskazane obszary są priorytetowe.";
+                    break;
                 case "bottlenecks":
                     simulatedAnswer += "Na podstawie przykładowych danych, ST2 (Konserwacja) i ST4 (Bezczynność z długim czasem przetwarzania) wydają się być wąskimi gardłami. ST2 powoduje 8h przestoju, a ST4 przetwarza tylko 50 zadań w 60 minut.";
                     break;
@@ -110,11 +143,9 @@ ST5,Operational,180,28,18,2800,1400,1.5,1.0,35,85
             return { ...topic, answer: simulatedAnswer };
         });
 
-        // --- Gemini API Call Logic (Integrated into Frontend) ---
         async function callGeminiAPIInternal(prompt, csvStringData) {
             const fullPrompt = `${prompt}\n\nOto dane CSV do analizy:\n\`\`\`csv\n${csvStringData}\n\`\`\``;
-            // IMPORTANT: Replace "" with your actual Gemini API Key for live analysis.
-            const apiKey = ""; // Example: "YOUR_GEMINI_API_KEY_HERE" 
+            const apiKey = ""; 
             const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
             if (!apiKey) {
@@ -188,9 +219,6 @@ ST5,Operational,180,28,18,2800,1400,1.5,1.0,35,85
             return { analysis: analysisResults };
         }
 
-
-        // --- Helper Components ---
-
         const LoadingSpinner = () => (
             <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-sky-500"></div>
         );
@@ -199,7 +227,70 @@ ST5,Operational,180,28,18,2800,1400,1.5,1.0,35,85
             <p className="text-red-400 mt-4 bg-red-900/30 p-3 rounded-md text-sm">{message}</p>
         );
 
-        // --- Chat Interface Component ---
+        // --- Witness Modal Component ---
+        function WitnessModal({ isOpen, onClose, onSubmit }) {
+            const [twinId, setTwinId] = useState('');
+            const [accessCode, setAccessCode] = useState('');
+
+            if (!isOpen) return null;
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                onSubmit(twinId, accessCode);
+                setTwinId('');
+                setAccessCode('');
+            };
+
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="modal-content text-slate-100" onClick={(e) => e.stopPropagation()}>
+                        <h2 className="text-2xl font-semibold mb-6 text-sky-400">Połącz z Witness Digital Twin</h2>
+                        <form onSubmit={handleSubmit}>
+                            <div className="mb-4">
+                                <label htmlFor="twinId" className="block text-sm font-medium text-slate-300 mb-1">Witness Digital Twin ID</label>
+                                <input
+                                    type="text"
+                                    id="twinId"
+                                    value={twinId}
+                                    onChange={(e) => setTwinId(e.target.value)}
+                                    className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none placeholder-slate-400"
+                                    placeholder="Wprowadź ID Bliźniaka Cyfrowego"
+                                    required
+                                />
+                            </div>
+                            <div className="mb-6">
+                                <label htmlFor="accessCode" className="block text-sm font-medium text-slate-300 mb-1">Kod Dostępu</label>
+                                <input
+                                    type="password"
+                                    id="accessCode"
+                                    value={accessCode}
+                                    onChange={(e) => setAccessCode(e.target.value)}
+                                    className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none placeholder-slate-400"
+                                    placeholder="Wprowadź Kod Dostępu"
+                                    required
+                                />
+                            </div>
+                            <div className="flex justify-end space-x-3">
+                                <button
+                                    type="button"
+                                    onClick={onClose}
+                                    className="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-slate-200 font-semibold rounded-lg transition duration-150"
+                                >
+                                    Anuluj
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white font-semibold rounded-lg transition duration-150"
+                                >
+                                    Połącz
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            );
+        }
+
         function ChatInterface({ originalCsvData }) {
             const [messages, setMessages] = useState([
                 { sender: 'ai', text: 'Witaj! Zadaj pytanie dotyczące przeanalizowanych danych CSV. Pamiętaj, że to jest symulowany czat.' }
@@ -286,12 +377,10 @@ ST5,Operational,180,28,18,2800,1400,1.5,1.0,35,85
             );
         }
 
-
-        // --- Core Page Components ---
-
         function LandingPage({ onNavigate, onAnalyzeFile, onDemoTest, isLoading }) {
             const [file, setFile] = useState(null);
             const [localError, setLocalError] = useState('');
+            const [isWitnessModalOpen, setIsWitnessModalOpen] = useState(false); // State for Witness modal
 
             const handleFileChange = (event) => {
                 const selectedFile = event.target.files[0];
@@ -313,61 +402,95 @@ ST5,Operational,180,28,18,2800,1400,1.5,1.0,35,85
                 }
                 onAnalyzeFile(file);
             };
+
+            const handleOpenWitnessModal = () => {
+                setIsWitnessModalOpen(true);
+            };
+
+            const handleCloseWitnessModal = () => {
+                setIsWitnessModalOpen(false);
+            };
+
+            const handleWitnessSubmit = (twinId, accessCode) => {
+                console.log("Witness Digital Twin ID:", twinId);
+                console.log("Access Code:", accessCode);
+                // For now, just closes the modal. No actual connection.
+                setIsWitnessModalOpen(false);
+                // Potentially show a success/info message here in the future
+            };
+
             const isApiAnalysisEnabled = true;
 
             return (
-                <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-white flex flex-col items-center justify-center p-6 font-sans">
-                    <div className="bg-slate-800 p-8 md:p-12 rounded-xl shadow-2xl w-full max-w-xl text-center">
-                        <h1 className="text-4xl md:text-5xl font-bold mb-3 text-sky-400">{APP_TITLE}</h1>
-                        <p className="text-slate-300 mb-8 text-lg">
-                            {isApiAnalysisEnabled ? APP_SUBTITLE_FULL : APP_SUBTITLE_DEMO_ONLY}
-                        </p>
+                <>
+                    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-white flex flex-col items-center justify-center p-6 font-sans">
+                        <div className="bg-slate-800 p-8 md:p-12 rounded-xl shadow-2xl w-full max-w-xl text-center">
+                            <h1 className="text-4xl md:text-5xl font-bold mb-3 text-sky-400">{APP_TITLE}</h1>
+                            <p className="text-slate-300 mb-8 text-lg">
+                                {isApiAnalysisEnabled ? APP_SUBTITLE_FULL : APP_SUBTITLE_DEMO_ONLY}
+                            </p>
 
-                        {isApiAnalysisEnabled && (
-                            <>
-                                <div className="mb-6 space-y-3">
-                                    <div>
-                                        <label htmlFor="file-upload" className="w-full cursor-pointer bg-sky-500 hover:bg-sky-600 text-white font-semibold py-3 px-6 rounded-lg inline-block transition duration-150 ease-in-out shadow-md hover:shadow-lg">
-                                            {file ? `Wybrano: ${file.name}` : 'Wybierz plik CSV'}
-                                        </label>
-                                        <input
-                                            id="file-upload"
-                                            type="file"
-                                            accept=".csv,text/csv"
-                                            onChange={handleFileChange}
-                                            className="hidden"
-                                        />
+                            {isApiAnalysisEnabled && (
+                                <>
+                                    <div className="mb-6 space-y-3">
+                                        <div>
+                                            <label htmlFor="file-upload" className="w-full cursor-pointer bg-sky-500 hover:bg-sky-600 text-white font-semibold py-3 px-6 rounded-lg inline-block transition duration-150 ease-in-out shadow-md hover:shadow-lg">
+                                                {file ? `Wybrano: ${file.name}` : 'Wybierz plik CSV'}
+                                            </label>
+                                            <input
+                                                id="file-upload"
+                                                type="file"
+                                                accept=".csv,text/csv"
+                                                onChange={handleFileChange}
+                                                className="hidden"
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={handleSubmitFile}
+                                            className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-xl transition duration-150 ease-in-out shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            disabled={!file || isLoading}
+                                        >
+                                            Analizuj Plik (Wymaga API)
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={handleSubmitFile}
-                                        className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-xl transition duration-150 ease-in-out shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        disabled={!file || isLoading}
-                                    >
-                                        Analizuj Plik (Wymaga API)
-                                    </button>
-                                </div>
-                                <div className="my-4 flex items-center">
-                                    <hr className="flex-grow border-t border-slate-700" />
-                                    <span className="px-3 text-slate-500 text-sm">LUB</span>
-                                    <hr className="flex-grow border-t border-slate-700" />
-                                </div>
-                            </>
-                        )}
+                                    <div className="my-4 flex items-center">
+                                        <hr className="flex-grow border-t border-slate-700" />
+                                        <span className="px-3 text-slate-500 text-sm">LUB</span>
+                                        <hr className="flex-grow border-t border-slate-700" />
+                                    </div>
+                                </>
+                            )}
 
-                        <button
-                            onClick={onDemoTest}
-                            className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg text-xl transition duration-150 ease-in-out shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-75 disabled:opacity-50 disabled:cursor-not-allowed"
-                            disabled={isLoading}
-                        >
-                            Uruchom Test z Danymi Demo
-                        </button>
+                            <button
+                                onClick={onDemoTest}
+                                className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg text-xl transition duration-150 ease-in-out shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-75 disabled:opacity-50 disabled:cursor-not-allowed mb-4" // Added mb-4 for spacing
+                                disabled={isLoading}
+                            >
+                                Uruchom Test z Danymi Demo
+                            </button>
 
-                        {localError && <ErrorMessage message={localError} />}
+                            {/* New Witness Digital Twin Button */}
+                            <button
+                                onClick={handleOpenWitnessModal}
+                                className="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg text-xl transition duration-150 ease-in-out shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-75 disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={isLoading} // You might want different logic for disabling this
+                            >
+                                Połącz z Witness Digital Twin
+                            </button>
+
+
+                            {localError && <ErrorMessage message={localError} />}
+                        </div>
+                        <footer className="fixed bottom-4 text-center w-full text-slate-500 text-sm">
+                            {APP_TITLE} - Wersja demonstracyjna
+                        </footer>
                     </div>
-                    <footer className="fixed bottom-4 text-center w-full text-slate-500 text-sm">
-                        {APP_TITLE} - Wersja demonstracyjna
-                    </footer>
-                </div>
+                    <WitnessModal 
+                        isOpen={isWitnessModalOpen} 
+                        onClose={handleCloseWitnessModal} 
+                        onSubmit={handleWitnessSubmit} 
+                    />
+                </>
             );
         }
 
@@ -378,15 +501,13 @@ ST5,Operational,180,28,18,2800,1400,1.5,1.0,35,85
             useEffect(() => {
                 if (safeResults.length > 0) {
                     const currentActiveStillValid = activeTopic && safeResults.find(r => r.id === activeTopic.id);
-                    if (!currentActiveStillValid) {
-                        setActiveTopic(safeResults[0]);
-                    } else if (!activeTopic) {
+                    if (!activeTopic || !currentActiveStillValid) {
                         setActiveTopic(safeResults[0]);
                     }
                 } else {
-                    setActiveTopic(null);
+                    setActiveTopic(null); 
                 }
-            }, [safeResults, activeTopic]);
+            }, [safeResults]); 
 
             if (isLoading) {
                 return (
@@ -486,7 +607,7 @@ ST5,Operational,180,28,18,2800,1400,1.5,1.0,35,85
                                 {safeResults.length > 0 ? (
                                     <p className="text-slate-400 text-xl">Wybierz temat z listy po lewej stronie, aby wyświetlić analizę.</p>
                                 ) : (
-                                    <p className="text-slate-400 text-xl">Brak dostępnych wyników analizy.</p>
+                                    <p className="text-slate-400 text-xl">Brak dostępnych wyników analizy. Proszę wybrać temat.</p>
                                 )}
                             </div>
                         )}
@@ -585,7 +706,6 @@ ST5,Operational,180,28,18,2800,1400,1.5,1.0,35,85
             }
         }
 
-        // Render the App to the DOM
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
 
