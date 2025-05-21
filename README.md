@@ -138,7 +138,6 @@ This application is structured for easy deployment to **Vercel**.
 5.  Deploy! Vercel will build your frontend and deploy the `api/analyze.js` file as a serverless function.
 
 ## � Contributing
-
 Contributions, issues, and feature requests are welcome. Please feel free to fork the repository, make changes, and open a pull request.
 
 ## � License
