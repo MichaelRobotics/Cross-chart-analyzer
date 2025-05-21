@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analizator Danych CSV</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    // You can extend Tailwind's theme here if needed
+                }
+            },
+            plugins: [
+                tailwind.plugins.typography, // Enable the typography plugin for 'prose' classes
+            ]
+        }
+    </script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        /* Custom Scrollbar CSS */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgb(51 65 85 / 0.5); /* slate-700 with opacity */
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgb(14 165 233 / 0.7); /* sky-500 with opacity */
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgb(14 165 233 / 1); /* sky-500 */
+        }
+        /* For Firefox */
+        .custom-scrollbar {
+            scrollbar-width: thin;
+            scrollbar-color: rgb(14 165 233 / 0.7) rgb(51 65 85 / 0.5);
+        }
+
+        /* Basic body styling to match app background */
+        body {
+            margin: 0;
+            font-family: sans-serif; /* Default font, Tailwind will override where specified */
+            background-color: #0f172a; /* slate-900, can be part of a gradient in React but simpler here */
+        }
+        #root {
+             min-height: 100vh;
+        }
+        /* Modal styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: #1e293b; /* slate-800 */
+            padding: 2rem;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); /* shadow-2xl */
+            width: 90%;
+            max-width: 500px;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // --- React Application Code ---
+        const { useState, useEffect, useRef } = React;
+
+        // --- Configuration & Constants ---
+
+        const APP_TITLE = "Analizator Danych CSV";
+        const APP_SUBTITLE_FULL = "Prześlij plik CSV, aby uzyskać analizę opartą na AI, lub uruchom test z danymi demonstracyjnymi.";
+        const APP_SUBTITLE_DEMO_ONLY = "Uruchom test z danymi demonstracyjnymi, aby zobaczyć symulowaną analizę.";
+
+        const PREDEFINED_TOPICS = [
+            { 
+                id: "holistic",
+                title: "Analiza Holistyczna",
+                question: "Provide a comprehensive holistic analysis of the provided CSV data, considering all aspects such as bottlenecks, workstation utilization, quality, changeovers, employee performance, costs, energy consumption, and downtime. Synthesize these insights into an overall assessment of the process, highlighting key interdependencies, major strengths, critical weaknesses, and strategic recommendations for improvement. Deliver the summary in Polish."
+            },
+            { id: "bottlenecks", title: "Wąskie Gardła w Procesie", question: "Analyze the provided CSV data for potential bottlenecks. Identify where they might occur, their impact, and the largest bottleneck. Provide a concise summary in Polish." },
+            { id: "utilization", title: "Wykorzystanie Stanowisk Pracy", question: "Based on the CSV data, analyze workstation utilization. Note any under/overutilization and average/lowest availability if inferable. Provide a concise summary in Polish." },
+            { id: "quality", title: "Jakość", question: "Examine the CSV for insights into product/process quality. Indicate any quality issues or their absence. Provide a concise summary in Polish." },
+            { id: "changeovers", title: "Przezbrojenia", question: "Analyze the CSV for information on changeovers/retooling and their impact on efficiency. Provide a concise summary in Polish." },
+            { id: "employees", title: "Pracownicy", question: "Based on the CSV, analyze employee workload/efficiency. Note any imbalances or issues with operator numbers. Provide a concise summary in Polish." },
+            { id: "costs", title: "Koszty", question: "Analyze the CSV to identify key cost drivers, largest/smallest cost categories, and potential ROI if data supports it. Provide a concise summary in Polish." },
+            { id: "energy", title: "Zużycie Energii", question: "Examine the CSV for energy consumption patterns. Which workstations/products consume most energy if inferable? Provide a concise summary in Polish." },
+            { id: "downtime", title: "Awarie Przestoje", question: "Analyze the CSV for failures/unplanned downtime and their impact on the process. Provide a concise summary in Polish." }
+        ];
+
+        const SAMPLE_CSV_DATA_FOR_DEMO = `Workstation,Status,TasksCompleted,ProcessingTime_min,Energy_kWh,MaterialCost_PLN,LaborCost_PLN,Downtime_hours,DefectRate_%,ChangeoverTime_min,OperatorWorkload_%
+ST1,Operational,150,30,15,2500,1200,2,1.5,45,75
+ST2,Maintenance,0,0,2,100,50,8,0,0,0
+ST3,Operational,200,25,20,3000,1500,1,0.5,30,90
+ST4,Idle,50,60,5,1000,800,0,2.0,60,40
+ST5,Operational,180,28,18,2800,1400,1.5,1.0,35,85
+`;
+
+        const SIMULATED_ANALYSIS_RESULTS = PREDEFINED_TOPICS.map(topic => {
+            let simulatedAnswer = `To jest symulowana odpowiedź dla tematu: "${topic.title}". `;
+            switch (topic.id) {
+                case "holistic": 
+                    simulatedAnswer += "Przeprowadzając całościową ocenę na podstawie danych demonstracyjnych, można zauważyć kilka kluczowych obszarów. " +
+                                       "Stanowisko ST2 (w konserwacji) oraz ST4 (bezczynne z długim czasem przetwarzania) jawią się jako główne wąskie gardła, negatywnie wpływając na ogólny przepływ i generując koszty (szczególnie 8-godzinny przestój ST2). " +
+                                       "Wykorzystanie stanowisk ST3 (90%) i ST5 (85%) jest wysokie, co jest pozytywnym sygnałem, jednak ST4 (40%) pozostaje znacznie niedociążone. " +
+                                       "Jakość produktów wydaje się być na ogół pod kontrolą, chociaż ST4 z najwyższym wskaźnikiem defektów (2.0%) przy relatywnie niskiej liczbie wykonanych zadań może wymagać bliższej obserwacji. " +
+                                       "Pod względem kosztów, ST3 generuje najwyższe koszty materiałowe i pracy, a wspomniany przestój ST2 również stanowi znaczący ukryty koszt. " +
+                                       "Ogólnie rzecz biorąc, proces wykazuje potencjał do optymalizacji, zwłaszcza poprzez usprawnienie zarządzania konserwacją (minimalizacja przestojów ST2) oraz lepsze zbalansowanie obciążenia pracą (szczególnie dla ST4). " +
+                                       "Brak szczegółowych danych dotyczących przezbrojeń, efektywności pracowników czy zużycia energii w tym demo ogranicza pełniejszą ocenę tych aspektów, ale wskazane obszary są priorytetowe.";
+                    break;
+                case "bottlenecks":
+                    simulatedAnswer += "Na podstawie przykładowych danych, ST2 (Konserwacja) i ST4 (Bezczynność z długim czasem przetwarzania) wydają się być wąskimi gardłami. ST2 powoduje 8h przestoju, a ST4 przetwarza tylko 50 zadań w 60 minut.";
+                    break;
+                case "utilization":
+                    simulatedAnswer += "Stanowiska ST3 (90%) i ST5 (85%) wykazują wysokie wykorzystanie. ST4 (40%, Bezczynne) jest niedociążone. ST2 ma 0% wykorzystania (Konserwacja).";
+                    break;
+                case "quality":
+                    simulatedAnswer += "Ogólny wskaźnik defektów jest niski. ST4 ma najwyższy (2.0%) przy niskiej liczbie zadań, co może wymagać uwagi.";
+                    break;
+                case "costs":
+                    simulatedAnswer += "ST3 generuje najwyższe koszty operacyjne (Materiały: 3000 PLN, Praca: 1500 PLN). Przestój ST2 (8h) to znaczący koszt pośredni.";
+                    break;
+                default:
+                    simulatedAnswer += "Analiza tego aspektu wymagałaby bardziej szczegółowych danych lub specyficznych kolumn w pliku CSV, których przykładowe dane mogą nie zawierać w pełni. Dla celów demonstracyjnych, przyjmujemy, że dane są wystarczające do podstawowej oceny.";
+            }
+            return { ...topic, answer: simulatedAnswer };
+        });
+
+        async function callGeminiAPIInternal(prompt, csvStringData) {
+            const fullPrompt = `${prompt}\n\nOto dane CSV do analizy:\n\`\`\`csv\n${csvStringData}\n\`\`\``;
+            const apiKey = ""; 
+            const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            if (!apiKey) {
+                console.warn("Gemini API key is not set. Live analysis will not work.");
+                return "Klucz API Gemini nie jest ustawiony. Analiza na żywo nie będzie działać. Proszę uruchomić tryb demo lub skonfigurować klucz API w pliku HTML.";
+            }
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: fullPrompt }] }],
+                    }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    console.error("Gemini API Error Response:", errorData);
+                    const message = errorData?.error?.message || response.statusText || "Nieznany błąd API Gemini";
+                    throw new Error(`Błąd żądania do API Gemini: ${message} (Status: ${response.status})`);
+                }
+
+                const data = await response.json();
+
+                if (data.candidates && data.candidates.length > 0 &&
+                    data.candidates[0].content && data.candidates[0].content.parts &&
+                    data.candidates[0].content.parts.length > 0) {
+                    return data.candidates[0].content.parts[0].text;
+                } else if (data.promptFeedback && data.promptFeedback.blockReason) {
+                    console.warn("Odpowiedź API Gemini wskazuje na blokadę promptu:",
+                        data.promptFeedback.blockReason, data.promptFeedback.safetyRatings);
+                    return `Analiza nie mogła zostać w pełni wygenerowana z powodu blokady promptu. Powód: ${data.promptFeedback.blockReason}. Sprawdź dane lub prompt.`;
+                } else if (data.candidates && data.candidates.length > 0 && data.candidates[0].finishReason && data.candidates[0].finishReason !== "STOP") {
+                    console.warn("Odpowiedź API Gemini wskazuje na problem z generowaniem treści:",
+                        data.candidates[0].finishReason, data.candidates[0].safetyRatings);
+                    return `Analiza nie mogła zostać w pełni wygenerowana. Powód: ${data.candidates[0].finishReason}. Sprawdź dane lub prompt.`;
+                } else {
+                    console.warn("Nieoczekiwana struktura odpowiedzi API Gemini lub brak treści:", data);
+                    return "Analiza nie mogła zostać wygenerowana z powodu nieoczekiwanego formatu odpowiedzi API lub braku treści.";
+                }
+            } catch (error) {
+                console.error('Błąd podczas wywoływania API Gemini (wewnętrznie):', error);
+                if (error.message.startsWith('Błąd żądania do API Gemini:')) {
+                    return `Błąd podczas analizy AI: ${error.message}`;
+                }
+                return `Błąd podczas analizy AI: ${error.message}. Sprawdź połączenie internetowe, dane CSV i prompt.`;
+            }
+        }
+
+        async function analyzeCsvWithGeminiDirectly(csvData, topics) {
+            if (typeof csvData !== 'string' || !topics || !Array.isArray(topics) || topics.length === 0) {
+                throw new Error('Nieprawidłowe dane wejściowe: csvData musi być ciągiem znaków, a topics tablicą niepustą.');
+            }
+
+            const analysisPromises = topics.map(topic =>
+                callGeminiAPIInternal(topic.question, csvData)
+                    .then(answer => ({
+                        id: topic.id,
+                        title: topic.title,
+                        answer: answer || "Brak dostępnej analizy dla tego tematu."
+                    }))
+                    .catch(error => ({
+                        id: topic.id,
+                        title: topic.title,
+                        answer: `Błąd analizy tego tematu: ${error.message}`
+                    }))
+            );
+
+            const analysisResults = await Promise.all(analysisPromises);
+            return { analysis: analysisResults };
+        }
+
+        const LoadingSpinner = () => (
+            <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-sky-500"></div>
+        );
+
+        const ErrorMessage = ({ message }) => (
+            <p className="text-red-400 mt-4 bg-red-900/30 p-3 rounded-md text-sm">{message}</p>
+        );
+
+        // --- Witness Modal Component ---
+        function WitnessModal({ isOpen, onClose, onSubmit }) {
+            const [twinId, setTwinId] = useState('');
+            const [accessCode, setAccessCode] = useState('');
+
+            if (!isOpen) return null;
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                onSubmit(twinId, accessCode);
+                setTwinId('');
+                setAccessCode('');
+            };
+
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="modal-content text-slate-100" onClick={(e) => e.stopPropagation()}>
+                        <h2 className="text-2xl font-semibold mb-6 text-sky-400">Połącz z Witness Digital Twin</h2>
+                        <form onSubmit={handleSubmit}>
+                            <div className="mb-4">
+                                <label htmlFor="twinId" className="block text-sm font-medium text-slate-300 mb-1">Witness Digital Twin ID</label>
+                                <input
+                                    type="text"
+                                    id="twinId"
+                                    value={twinId}
+                                    onChange={(e) => setTwinId(e.target.value)}
+                                    className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none placeholder-slate-400"
+                                    placeholder="Wprowadź ID Bliźniaka Cyfrowego"
+                                    required
+                                />
+                            </div>
+                            <div className="mb-6">
+                                <label htmlFor="accessCode" className="block text-sm font-medium text-slate-300 mb-1">Kod Dostępu</label>
+                                <input
+                                    type="password"
+                                    id="accessCode"
+                                    value={accessCode}
+                                    onChange={(e) => setAccessCode(e.target.value)}
+                                    className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none placeholder-slate-400"
+                                    placeholder="Wprowadź Kod Dostępu"
+                                    required
+                                />
+                            </div>
+                            <div className="flex justify-end space-x-3">
+                                <button
+                                    type="button"
+                                    onClick={onClose}
+                                    className="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-slate-200 font-semibold rounded-lg transition duration-150"
+                                >
+                                    Anuluj
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white font-semibold rounded-lg transition duration-150"
+                                >
+                                    Połącz
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            );
+        }
+
+        function ChatInterface({ originalCsvData }) {
+            const [messages, setMessages] = useState([
+                { sender: 'ai', text: 'Witaj! Zadaj pytanie dotyczące przeanalizowanych danych CSV. Pamiętaj, że to jest symulowany czat.' }
+            ]);
+            const [inputValue, setInputValue] = useState('');
+            const [isAiTyping, setIsAiTyping] = useState(false);
+            const messagesEndRef = useRef(null);
+
+            const scrollToBottom = () => {
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            };
+
+            useEffect(scrollToBottom, [messages]);
+
+            const handleInputChange = (e) => {
+                setInputValue(e.target.value);
+            };
+
+            const handleSendMessage = () => {
+                if (inputValue.trim() === '') return;
+
+                const newUserMessage = { sender: 'user', text: inputValue };
+                setMessages(prevMessages => [...prevMessages, newUserMessage]);
+                setInputValue('');
+                setIsAiTyping(true);
+
+                setTimeout(() => {
+                    let aiResponseText = "To jest symulowana odpowiedź. W rzeczywistej aplikacji, zadałbym to pytanie do AI w kontekście danych:\n\n";
+                    if (inputValue.toLowerCase().includes("st1")) {
+                        aiResponseText += "Odnośnie ST1: Zgodnie z danymi, ST1 jest operacyjne, wykonało 150 zadań z czasem przetwarzania 30 min i obciążeniem operatora 75%.";
+                    } else if (inputValue.toLowerCase().includes("koszt")) {
+                        aiResponseText += "Odnośnie kosztów: Dane CSV zawierają kolumny MaterialCost_PLN i LaborCost_PLN. Czy chcesz podsumowanie tych kosztów dla konkretnego stanowiska?";
+                    } else if (inputValue.toLowerCase().includes("podsumuj dane")) {
+                        aiResponseText += `Oto fragment oryginalnych danych CSV, o które możesz pytać:\n${originalCsvData.substring(0, 200)}... (więcej danych dostępnych dla AI)`;
+                    }
+                    else {
+                        aiResponseText += `Twoje pytanie: "${newUserMessage.text}". W pełnej wersji, przeanalizowałbym to w kontekście danych CSV.`;
+                    }
+                    
+                    const newAiMessage = { sender: 'ai', text: aiResponseText };
+                    setMessages(prevMessages => [...prevMessages, newAiMessage]);
+                    setIsAiTyping(false);
+                }, 1000 + Math.random() * 1000);
+            };
+
+            return (
+                <div className="mt-8 pt-6 border-t border-slate-700">
+                    <h3 className="text-xl font-semibold mb-4 text-sky-400">Dodatkowe Pytania (Symulowany Czat)</h3>
+                    <div className="bg-slate-700/50 p-4 rounded-lg h-64 overflow-y-auto mb-4 flex flex-col space-y-3 custom-scrollbar">
+                        {messages.map((msg, index) => (
+                            <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`max-w-[70%] p-3 rounded-xl text-sm md:text-base
+                                    ${msg.sender === 'user' ? 'bg-sky-600 text-white' : 'bg-slate-600 text-slate-200'}`}>
+                                    {msg.text.split('\n').map((line, i) => <p key={i} className={i > 0 ? 'mt-1' : ''}>{line}</p>)}
+                                </div>
+                            </div>
+                        ))}
+                        {isAiTyping && (
+                            <div className="flex justify-start">
+                                <div className="max-w-[70%] p-3 rounded-xl bg-slate-600 text-slate-200 text-sm md:text-base">
+                                    <span className="italic">AI pisze...</span>
+                                </div>
+                            </div>
+                        )}
+                        <div ref={messagesEndRef} />
+                    </div>
+                    <div className="flex space-x-2">
+                        <input
+                            type="text"
+                            value={inputValue}
+                            onChange={handleInputChange}
+                            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                            placeholder="Zadaj pytanie..."
+                            className="flex-grow p-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none text-slate-100 placeholder-slate-400"
+                        />
+                        <button
+                            onClick={handleSendMessage}
+                            className="bg-sky-500 hover:bg-sky-600 text-white font-semibold py-3 px-5 rounded-lg transition duration-150 ease-in-out"
+                        >
+                            Wyślij
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        function LandingPage({ onNavigate, onAnalyzeFile, onDemoTest, isLoading }) {
+            const [file, setFile] = useState(null);
+            const [localError, setLocalError] = useState('');
+            const [isWitnessModalOpen, setIsWitnessModalOpen] = useState(false); // State for Witness modal
+
+            const handleFileChange = (event) => {
+                const selectedFile = event.target.files[0];
+                if (selectedFile) {
+                    if (selectedFile.type === "text/csv" || selectedFile.name.endsWith(".csv")) {
+                        setFile(selectedFile);
+                        setLocalError('');
+                    } else {
+                        setFile(null);
+                        setLocalError('Proszę wybrać plik w formacie CSV.');
+                    }
+                }
+            };
+
+            const handleSubmitFile = () => {
+                if (!file) {
+                    setLocalError('Proszę wybrać plik CSV do analizy.');
+                    return;
+                }
+                onAnalyzeFile(file);
+            };
+
+            const handleOpenWitnessModal = () => {
+                setIsWitnessModalOpen(true);
+            };
+
+            const handleCloseWitnessModal = () => {
+                setIsWitnessModalOpen(false);
+            };
+
+            const handleWitnessSubmit = (twinId, accessCode) => {
+                console.log("Witness Digital Twin ID:", twinId);
+                console.log("Access Code:", accessCode);
+                // For now, just closes the modal. No actual connection.
+                setIsWitnessModalOpen(false);
+                // Potentially show a success/info message here in the future
+            };
+
+            const isApiAnalysisEnabled = true;
+
+            return (
+                <>
+                    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-white flex flex-col items-center justify-center p-6 font-sans">
+                        <div className="bg-slate-800 p-8 md:p-12 rounded-xl shadow-2xl w-full max-w-xl text-center">
+                            <h1 className="text-4xl md:text-5xl font-bold mb-3 text-sky-400">{APP_TITLE}</h1>
+                            <p className="text-slate-300 mb-8 text-lg">
+                                {isApiAnalysisEnabled ? APP_SUBTITLE_FULL : APP_SUBTITLE_DEMO_ONLY}
+                            </p>
+
+                            {isApiAnalysisEnabled && (
+                                <>
+                                    <div className="mb-6 space-y-3">
+                                        <div>
+                                            <label htmlFor="file-upload" className="w-full cursor-pointer bg-sky-500 hover:bg-sky-600 text-white font-semibold py-3 px-6 rounded-lg inline-block transition duration-150 ease-in-out shadow-md hover:shadow-lg">
+                                                {file ? `Wybrano: ${file.name}` : 'Wybierz plik CSV'}
+                                            </label>
+                                            <input
+                                                id="file-upload"
+                                                type="file"
+                                                accept=".csv,text/csv"
+                                                onChange={handleFileChange}
+                                                className="hidden"
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={handleSubmitFile}
+                                            className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-xl transition duration-150 ease-in-out shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            disabled={!file || isLoading}
+                                        >
+                                            Analizuj Plik (Wymaga API)
+                                        </button>
+                                    </div>
+                                    <div className="my-4 flex items-center">
+                                        <hr className="flex-grow border-t border-slate-700" />
+                                        <span className="px-3 text-slate-500 text-sm">LUB</span>
+                                        <hr className="flex-grow border-t border-slate-700" />
+                                    </div>
+                                </>
+                            )}
+
+                            <button
+                                onClick={onDemoTest}
+                                className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg text-xl transition duration-150 ease-in-out shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-75 disabled:opacity-50 disabled:cursor-not-allowed mb-4" // Added mb-4 for spacing
+                                disabled={isLoading}
+                            >
+                                Uruchom Test z Danymi Demo
+                            </button>
+
+                            {/* New Witness Digital Twin Button */}
+                            <button
+                                onClick={handleOpenWitnessModal}
+                                className="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg text-xl transition duration-150 ease-in-out shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-75 disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={isLoading} // You might want different logic for disabling this
+                            >
+                                Połącz z Witness Digital Twin
+                            </button>
+
+
+                            {localError && <ErrorMessage message={localError} />}
+                        </div>
+                        <footer className="fixed bottom-4 text-center w-full text-slate-500 text-sm">
+                            {APP_TITLE} - Wersja demonstracyjna
+                        </footer>
+                    </div>
+                    <WitnessModal 
+                        isOpen={isWitnessModalOpen} 
+                        onClose={handleCloseWitnessModal} 
+                        onSubmit={handleWitnessSubmit} 
+                    />
+                </>
+            );
+        }
+
+        function ResultsPage({ onNavigate, analysisResults, isLoading, globalError, originalCsvDataForChat }) {
+            const [activeTopic, setActiveTopic] = useState(null);
+            const safeResults = Array.isArray(analysisResults) ? analysisResults : [];
+
+            useEffect(() => {
+                if (safeResults.length > 0) {
+                    const currentActiveStillValid = activeTopic && safeResults.find(r => r.id === activeTopic.id);
+                    if (!activeTopic || !currentActiveStillValid) {
+                        setActiveTopic(safeResults[0]);
+                    }
+                } else {
+                    setActiveTopic(null); 
+                }
+            }, [safeResults]); 
+
+            if (isLoading) {
+                return (
+                    <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-6">
+                        <LoadingSpinner />
+                        <p className="mt-4 text-xl">Analizowanie danych...</p>
+                    </div>
+                );
+            }
+
+            if (globalError) {
+                return (
+                    <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-6 text-center">
+                        <h2 className="text-3xl font-semibold mb-4 text-red-400">Błąd Analizy</h2>
+                        <ErrorMessage message={globalError} />
+                        <button
+                            onClick={() => onNavigate('landing')}
+                            className="mt-6 bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 px-6 rounded-lg transition duration-150"
+                        >
+                            Wróć do strony głównej
+                        </button>
+                    </div>
+                );
+            }
+            
+            if (safeResults.length === 0 && !isLoading) {
+                return (
+                    <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-6 text-center">
+                        <h2 className="text-3xl font-semibold mb-4 text-sky-400">Brak wyników</h2>
+                        <p className="text-slate-300 mb-6">Nie udało się wygenerować analizy lub nie ma dostępnych wyników.</p>
+                        <button
+                            onClick={() => onNavigate('landing')}
+                            className="bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 px-6 rounded-lg transition duration-150"
+                        >
+                            Wróć do strony głównej
+                        </button>
+                    </div>
+                );
+            }
+
+            const getHtmlForAnswer = (answerText) => {
+                if (answerText === null || answerText === undefined) {
+                    return { __html: "<p>Analiza dla tego tematu jest niedostępna.</p>" };
+                }
+                const escapedText = String(answerText)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+                return { __html: escapedText.replace(/\n/g, '<br />') };
+            };
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-white flex flex-col md:flex-row p-4 md:p-6 space-y-4 md:space-y-0 md:space-x-6 font-sans">
+                    <aside className="md:w-1/3 lg:w-1/4 bg-slate-800 p-6 rounded-xl shadow-xl flex flex-col" style={{ maxHeight: 'calc(100vh - 3rem)' }}>
+                        <h2 className="text-2xl font-semibold mb-6 text-sky-400 border-b border-slate-700 pb-3">Tematy Analizy</h2>
+                        <nav className="flex-grow overflow-y-auto pr-2 custom-scrollbar">
+                            <ul>
+                                {safeResults.map((result) => (
+                                    <li key={result.id} className="mb-2">
+                                        <button
+                                            onClick={() => setActiveTopic(result)}
+                                            className={`w-full text-left p-3 rounded-md transition-all duration-150 ease-in-out focus:outline-none
+                                                ${activeTopic && activeTopic.id === result.id
+                                                    ? 'bg-sky-600 text-white shadow-md'
+                                                    : 'hover:bg-slate-700 text-slate-300'}`}
+                                        >
+                                            {result.title || 'Brak tytułu'}
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        </nav>
+                        <button
+                            onClick={() => onNavigate('landing')}
+                            className="mt-8 w-full bg-sky-500 hover:bg-sky-600 text-white font-semibold py-3 px-4 rounded-lg transition duration-150 ease-in-out shadow-md flex-shrink-0"
+                        >
+                            Analizuj Nowy Plik
+                        </button>
+                    </aside>
+
+                    <main className="md:w-2/3 lg:w-3/4 bg-slate-800 p-6 md:p-8 rounded-xl shadow-xl overflow-y-auto custom-scrollbar" style={{ maxHeight: 'calc(100vh - 3rem)' }}>
+                        {activeTopic ? (
+                            <>
+                                <h1 className="text-3xl font-bold mb-6 text-sky-400 border-b border-slate-700 pb-3">
+                                    {activeTopic.title || 'Brak tytułu'}
+                                </h1>
+                                <div
+                                    className="prose prose-sm sm:prose-base prose-invert max-w-none text-slate-200 leading-relaxed"
+                                    dangerouslySetInnerHTML={getHtmlForAnswer(activeTopic.answer)}
+                                />
+                                <ChatInterface originalCsvData={originalCsvDataForChat || SAMPLE_CSV_DATA_FOR_DEMO} />
+                            </>
+                        ) : (
+                            <div className="flex items-center justify-center h-full">
+                                {safeResults.length > 0 ? (
+                                    <p className="text-slate-400 text-xl">Wybierz temat z listy po lewej stronie, aby wyświetlić analizę.</p>
+                                ) : (
+                                    <p className="text-slate-400 text-xl">Brak dostępnych wyników analizy. Proszę wybrać temat.</p>
+                                )}
+                            </div>
+                        )}
+                    </main>
+                </div>
+            );
+        }
+
+        function App() {
+            const [currentPage, setCurrentPage] = useState('landing');
+            const [analysisResults, setAnalysisResults] = useState([]);
+            const [isLoading, setIsLoading] = useState(false);
+            const [globalError, setGlobalError] = useState('');
+            const [originalCsvForChat, setOriginalCsvForChat] = useState(SAMPLE_CSV_DATA_FOR_DEMO);
+
+            const navigate = (page) => {
+                setCurrentPage(page);
+                if (page === 'landing' || (page === 'results' && globalError)) {
+                    setGlobalError('');
+                }
+                if (page === 'landing') {
+                    setAnalysisResults([]);
+                }
+            };
+
+            const handleAnalyzeFileWithApi = async (fileObject) => {
+                setIsLoading(true);
+                setGlobalError('');
+                setAnalysisResults([]); 
+
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    const csvDataString = event.target.result;
+                    setOriginalCsvForChat(csvDataString); 
+                    try {
+                        const results = await analyzeCsvWithGeminiDirectly(csvDataString, PREDEFINED_TOPICS);
+
+                        if (!results.analysis || !Array.isArray(results.analysis)) {
+                            throw new Error("Odpowiedź z funkcji analizy nie zawierała oczekiwanych danych.");
+                        }
+                        setAnalysisResults(results.analysis);
+                        navigate('results');
+                    } catch (err) {
+                        console.error("Błąd podczas analizy pliku (bezpośrednio):", err);
+                        setGlobalError(`Nie udało się przeanalizować pliku: ${err.message}. Sprawdź konsolę przeglądarki po więcej szczegółów.`);
+                        navigate('results'); 
+                    } finally {
+                        setIsLoading(false);
+                    }
+                };
+                reader.onerror = () => {
+                    console.error("Błąd odczytu pliku.");
+                    setGlobalError("Nie udało się odczytać pliku.");
+                    setIsLoading(false);
+                    navigate('results');
+                };
+                reader.readAsText(fileObject, 'UTF-8');
+            };
+
+            const handleDemoTestFlow = () => {
+                setIsLoading(true);
+                setGlobalError('');
+                setAnalysisResults([]); 
+                setOriginalCsvForChat(SAMPLE_CSV_DATA_FOR_DEMO);
+
+                setTimeout(() => {
+                    setAnalysisResults(SIMULATED_ANALYSIS_RESULTS);
+                    navigate('results');
+                    setIsLoading(false);
+                }, 800); 
+            };
+
+            switch (currentPage) {
+                case 'landing':
+                    return <LandingPage 
+                                onNavigate={navigate}
+                                onAnalyzeFile={handleAnalyzeFileWithApi} 
+                                onDemoTest={handleDemoTestFlow}
+                                isLoading={isLoading} 
+                            />;
+                case 'results':
+                    return <ResultsPage 
+                                onNavigate={navigate}
+                                analysisResults={analysisResults} 
+                                isLoading={isLoading}
+                                globalError={globalError} 
+                                originalCsvDataForChat={originalCsvForChat}
+                            />;
+                default:
+                    return <LandingPage 
+                                onNavigate={navigate}
+                                onAnalyzeFile={handleAnalyzeFileWithApi} 
+                                onDemoTest={handleDemoTestFlow}
+                                isLoading={isLoading} 
+                            />;
+            }
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+
+    </script>
+</body>
+</html>
