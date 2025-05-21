@@ -1,0 +1,20 @@
+/* src/index.css */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* You can add any additional global custom styles or overrides below these directives.
+  For example:
+*/
+
+/* body {
+  font-family: 'Inter', sans-serif; /* Ensure 'Inter' is configured in tailwind.config.js or imported via @font-face if you use it here */
+  /* background-color: #111827; /* Example dark background if not covered by Tailwind utilities on html/body */
+  /* color: #e5e7eb; /* Example default text color */
+/* } */
+
+/* Example of a custom utility-like class (though prefer Tailwind utilities where possible) */
+/* .custom-button-style {
+  @apply py-2 px-4 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75;
+} */
