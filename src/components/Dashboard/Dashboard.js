@@ -7,7 +7,7 @@ import { useAnalysisContext } from '../../contexts/AnalysisContext';
 const Dashboard = ({ params, onNavigateToLanding }) => {
     const [analysisBlocksStore, setAnalysisBlocksStore] = useState([]);
     const [currentAnalysisIndex, setCurrentAnalysisIndex] = useState(0);
-    const [questionIdCounter, setQuestionIdCounter] = useState(0); // Counter for unique IDs for question blocks
+    const [questionIdCounter, setQuestionIdCounter] = useState(0);
     const [currentDashboardContextTitle, setCurrentDashboardContextTitle] = useState("Moje Analizy");
     const [chatMessages, setChatMessages] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -15,21 +15,21 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
 
     const generateAndDisplayFullAnalysis = useCallback((questionText, isInitial = false, isRealData = false, topicContextForContent = null) => {
         let newBlockData;
-        let currentQIdForThisBlock = questionIdCounter;
+        let blockSpecificQuestionId = questionIdCounter;
 
         if (!isInitial) {
-            // Only increment if it's a new question block, not for the initial block
-            currentQIdForThisBlock = questionIdCounter + 1;
-            // The actual state update for the *next* call will happen after this function returns and is processed
+            // Increment counter for the new block ID
+            blockSpecificQuestionId = questionIdCounter + 1;
+            // We will update the state later, after using this ID
         }
         
-        const analysisBlockId = isInitial ? 'initial-analysis' : `analysis-q-${currentQIdForThisBlock}`;
+        const analysisBlockId = isInitial ? 'initial-analysis' : `analysis-q-${blockSpecificQuestionId}`;
         
         let blockTitleForNavigation;
         if (isInitial) {
             blockTitleForNavigation = topicContextForContent || questionText;
         } else {
-            blockTitleForNavigation = `Odpowiedź na pytanie ${currentQIdForThisBlock}`;
+            blockTitleForNavigation = `Odpowiedź na pytanie ${blockSpecificQuestionId}`;
         }
 
         let findingsHeading, findingsContent, thoughtProcessContent, newSuggestionsContent;
@@ -51,7 +51,7 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
                     `Jakie są kluczowe wskaźniki dla ${effectiveTopicContext}?`,
                     `Poproś o szczegółową analizę X w kontekście ${effectiveTopicContext}.`
                 ];
-            } else { // Default for "Analiza Holistyczna" / "Analiza Początkowa" (demo/classic)
+            } else { 
                 findingsContent = `<p>Agent zidentyfikował, że produkty o relatywnie wysokim koszcie materiału nie zawsze korelują z najdłuższym czasem realizacji...</p><p>Dodatkowo, pewna grupa produktów charakteryzująca się niskim 'Wartość Dodana VA %'...</p>`;
                 thoughtProcessContent = `<p>Aby sformułować te spostrzeżenia, Agent wykonał następujące kroki:</p><ul class="mt-2 space-y-1"><li>Agent obliczył złożone wskaźniki...</li><li>Agent przeprowadził analizę kwadrantową...</li><li>Agent porównał profile kosztowe...</li></ul>`;
                 newSuggestionsContent = ["Które kategorie produktów wykazują największą dysproporcję...?", "Czy istnieje segment produktów, gdzie wysoka wartość 'NVA %'...", "Jakie czynniki, poza bezpośrednimi kosztami..."];
@@ -78,34 +78,21 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
             if (isInitial) { 
                 return [newBlockData]; 
             }
+            // Ensure not to add duplicate if somehow called multiple times with same ID
             const existingIndex = prevBlocks.findIndex(b => b.id === analysisBlockId);
             if (existingIndex > -1) { 
                 const updatedBlocks = [...prevBlocks];
-                updatedBlocks[existingIndex] = newBlockData;
+                updatedBlocks[existingIndex] = newBlockData; // Replace if somehow ID was reused
                 return updatedBlocks;
             }
             return [...prevBlocks, newBlockData]; 
         });
         
         if (!isInitial) {
-            setQuestionIdCounter(currentQIdForThisBlock); // Update counter after using its value
+            setQuestionIdCounter(blockSpecificQuestionId); // Update counter to the ID just used for the new block
         }
         return newBlockData; 
-    }, [currentDashboardContextTitle, questionIdCounter]);
-
-
-    useEffect(() => {
-        if (analysisBlocksStore.length > 0) {
-            const lastBlock = analysisBlocksStore[analysisBlocksStore.length - 1];
-            if (lastBlock && lastBlock.id !== 'initial-analysis') { 
-                setCurrentAnalysisIndex(analysisBlocksStore.length - 1);
-            } else if (lastBlock && lastBlock.id === 'initial-analysis') { 
-                setCurrentAnalysisIndex(0);
-            }
-        } else {
-            setCurrentAnalysisIndex(0); 
-        }
-    }, [analysisBlocksStore]);
+    }, [currentDashboardContextTitle, questionIdCounter]); // questionIdCounter is needed here to ensure the function gets the latest value for new block IDs
 
 
     useEffect(() => {
@@ -133,14 +120,12 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
             }
         } else if (currentMode === 'real' && analysisNameFromParams) {
             newContextTitle = analysisNameFromParams;
-            shouldAddDefaultQuestions = false; // Explicitly NO demo questions for user's real analysis
+            shouldAddDefaultQuestions = false; 
         } else if (currentMode === 'classic' || currentMode === 'demo' || !currentMode) {
-            // This covers explicit demo/classic mode, or if dashboard is loaded without specific params
             newContextTitle = "Analiza Holistyczna"; 
             currentMode = 'demo'; 
-            shouldAddDefaultQuestions = true; // Only add demo questions in this explicit demo scenario
+            shouldAddDefaultQuestions = true; 
         } else { 
-            // Fallback for unknown modes - treat as empty "My Analyses"
             newContextTitle = "Moje Analizy";
             shouldAddDefaultQuestions = false;
             if (userCreatedAnalyses.length > 0) { 
@@ -170,12 +155,11 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
             generateAndDisplayFullAnalysis(newContextTitle, true, false, newContextTitle); 
         }
         
-        if (shouldAddDefaultQuestions) { // Only add demo questions if explicitly in demo mode
+        if (shouldAddDefaultQuestions) { 
              setTimeout(() => { 
                 const q1 = "Zidentyfikuj produkty, gdzie koszt przezbrojenia ma nieproporcjonalnie duży wpływ na całkowity koszt jednostkowy w stosunku do wolumenu produkcji.";
                 const block1Data = generateAndDisplayFullAnalysis(q1, false, false, newContextTitle);
                 setChatMessages(prev => [...prev, {sender: 'user', text: q1}]);
-                // Add a slight delay for the "Agent analizuje" message before the actual one
                 setTimeout(() => {
                     setChatMessages(prev => [...prev, {sender: 'ai', text: `Agent analizuje: "${q1.substring(0,25)}..."`}]);
                     setTimeout(() => {
@@ -184,8 +168,8 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
                             const findingsText = block1Data?.findingsContent?.match(/<p>(.*?)<\/p>/)?.[1] || "Oto wyniki dla pytania 1.";
                             return [...updatedMsgs, {sender: 'ai', text: findingsText.substring(0,100) + (findingsText.length > 100 ? "..." : "")}];
                         });
-                    }, 50); // Delay for "actual" answer
-                }, 50); // Delay for "thinking" message
+                    }, 50); 
+                }, 50); 
 
                 const q2 = "Czy istnieje grupa produktów o podobnej strukturze kosztów, ale znacząco różniąca się rentownością godzinową? Jakie mogą być tego przyczyny?";
                 const block2Data = generateAndDisplayFullAnalysis(q2, false, false, newContextTitle);
@@ -199,11 +183,26 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
                             return [...updatedMsgs, {sender: 'ai', text: findingsText.substring(0,100) + (findingsText.length > 100 ? "..." : "")}];
                         });
                     }, 50);
-                }, 100); // Stagger demo question 2 slightly
+                }, 100); 
             }, 150); 
         }
         setIsLoading(false);
     }, [params, userCreatedAnalyses, generateAndDisplayFullAnalysis]);
+
+
+     useEffect(() => {
+        // This effect ensures currentAnalysisIndex is updated after analysisBlocksStore changes.
+        if (analysisBlocksStore.length > 0) {
+            const lastBlock = analysisBlocksStore[analysisBlocksStore.length - 1];
+            if (lastBlock && lastBlock.id !== 'initial-analysis') {
+                setCurrentAnalysisIndex(analysisBlocksStore.length - 1);
+            } else { // Handles initial block or if store was reset to initial
+                setCurrentAnalysisIndex(0);
+            }
+        } else {
+            setCurrentAnalysisIndex(0); // Default if store is empty
+        }
+    }, [analysisBlocksStore]);
 
 
     const handleSelectTopic = (topic) => {
@@ -225,6 +224,8 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
             const thinkingMessage = `Agent analizuje: "${messageText.substring(0,25)}..."`;
             setChatMessages(prev => [...prev, { sender: 'ai', text: thinkingMessage }]);
 
+            // Generate the full analysis block for the main content area
+            // generateAndDisplayFullAnalysis will update questionIdCounter internally for the next block
             const newBlockData = generateAndDisplayFullAnalysis(messageText, false, false, currentDashboardContextTitle);
 
             setTimeout(() => {
