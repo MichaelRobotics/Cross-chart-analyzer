@@ -117,55 +117,56 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
             currentMode = 'demo'; 
             shouldAddDefaultQuestions = true; 
         } else if (newParams.topicContext) { 
-            // This handles clicking on a static topic name if they were present.
-            // Since static topics are removed, this path might be less relevant,
-            // but we can treat it as loading a demo for that topic name.
             newContextTitle = newParams.topicContext;
             currentMode = 'demo'; 
             shouldAddDefaultQuestions = true;
         }
         
         setCurrentDashboardContextTitle(newContextTitle);
-        setQuestionIdCounter(0); 
-        setAnalysisBlocksStore([]); 
-        setChatMessages([]);      
-
-        if (currentMode === 'real') {
-            generateAndDisplayFullAnalysis(`Analiza dla: ${analysisNameFromParams} (Plik: ${fileNameFromParams})`, true, true, newContextTitle);
-            setChatMessages(prev => [{ sender: 'ai', text: `Załadowano analizę: ${analysisNameFromParams}` }]);
-        } else if (currentMode === 'demo') { 
-            generateAndDisplayFullAnalysis(newContextTitle, true, false, newContextTitle); 
+        
+        if (currentMode === 'real' || currentMode === 'demo') {
+            setQuestionIdCounter(0);
+            setAnalysisBlocksStore([]);
+            setChatMessages([]);
+            
+            if (currentMode === 'real') {
+                generateAndDisplayFullAnalysis(`Analiza dla: ${analysisNameFromParams} (Plik: ${fileNameFromParams})`, true, true, newContextTitle);
+                setChatMessages(prev => [{ sender: 'ai', text: `Załadowano analizę: ${analysisNameFromParams}` }]);
+            } else if (currentMode === 'demo') { 
+                generateAndDisplayFullAnalysis(newContextTitle, true, false, newContextTitle); 
+            }
+            
+            if (shouldAddDefaultQuestions) {
+                setTimeout(() => { 
+                    const q1 = "Zidentyfikuj produkty, gdzie koszt przezbrojenia ma nieproporcjonalnie duży wpływ na całkowity koszt jednostkowy w stosunku do wolumenu produkcji.";
+                    const block1Data = generateAndDisplayFullAnalysis(q1, false, false, newContextTitle);
+                    setChatMessages(prev => [...prev, {sender: 'user', text: q1}]);
+                    const thinkingMsg1Id = Date.now() + "_q1_think";
+                    setChatMessages(prev => [...prev, {sender: 'ai', text: `Agent analizuje: "${q1.substring(0,25)}..."`, id: thinkingMsg1Id}]);
+                    setTimeout(() => {
+                        setChatMessages(prevMsgs => {
+                            const updatedMsgs = prevMsgs.filter(m => m.id !== thinkingMsg1Id);
+                            const findingsText = block1Data?.findingsContent?.match(/<p>(.*?)<\/p>/)?.[1] || "Oto wyniki dla pytania 1.";
+                            return [...updatedMsgs, {sender: 'ai', text: findingsText.substring(0,100) + (findingsText.length > 100 ? "..." : "")}];
+                        });
+                    }, 50); 
+                    
+                    const q2 = "Czy istnieje grupa produktów o podobnej strukturze kosztów, ale znacząco różniąca się rentownością godzinową? Jakie mogą być tego przyczyny?";
+                    const block2Data = generateAndDisplayFullAnalysis(q2, false, false, newContextTitle);
+                    setChatMessages(prev => [...prev, {sender: 'user', text: q2}]);
+                    const thinkingMsg2Id = Date.now() + "_q2_think";
+                    setChatMessages(prev => [...prev, {sender: 'ai', text: `Agent analizuje: "${q2.substring(0,25)}..."`, id: thinkingMsg2Id}]);
+                     setTimeout(() => {
+                        setChatMessages(prevMsgs => {
+                            const updatedMsgs = prevMsgs.filter(m => m.id !== thinkingMsg2Id);
+                            const findingsText = block2Data?.findingsContent?.match(/<p>(.*?)<\/p>/)?.[1] || "Oto wyniki dla pytania 2.";
+                            return [...updatedMsgs, {sender: 'ai', text: findingsText.substring(0,100) + (findingsText.length > 100 ? "..." : "")}];
+                        });
+                    }, 50);
+                }, 150); 
+            }
         }
         
-        if (shouldAddDefaultQuestions) { 
-             setTimeout(() => { 
-                const q1 = "Zidentyfikuj produkty, gdzie koszt przezbrojenia ma nieproporcjonalnie duży wpływ na całkowity koszt jednostkowy w stosunku do wolumenu produkcji.";
-                const block1Data = generateAndDisplayFullAnalysis(q1, false, false, newContextTitle);
-                setChatMessages(prev => [...prev, {sender: 'user', text: q1}]);
-                const thinkingMsg1Id = Date.now() + "_q1_think";
-                setChatMessages(prev => [...prev, {sender: 'ai', text: `Agent analizuje: "${q1.substring(0,25)}..."`, id: thinkingMsg1Id}]);
-                setTimeout(() => {
-                    setChatMessages(prevMsgs => {
-                        const updatedMsgs = prevMsgs.filter(m => m.id !== thinkingMsg1Id);
-                        const findingsText = block1Data?.findingsContent?.match(/<p>(.*?)<\/p>/)?.[1] || "Oto wyniki dla pytania 1.";
-                        return [...updatedMsgs, {sender: 'ai', text: findingsText.substring(0,100) + (findingsText.length > 100 ? "..." : "")}];
-                    });
-                }, 50); 
-                
-                const q2 = "Czy istnieje grupa produktów o podobnej strukturze kosztów, ale znacząco różniąca się rentownością godzinową? Jakie mogą być tego przyczyny?";
-                const block2Data = generateAndDisplayFullAnalysis(q2, false, false, newContextTitle);
-                setChatMessages(prev => [...prev, {sender: 'user', text: q2}]);
-                const thinkingMsg2Id = Date.now() + "_q2_think";
-                setChatMessages(prev => [...prev, {sender: 'ai', text: `Agent analizuje: "${q2.substring(0,25)}..."`, id: thinkingMsg2Id}]);
-                 setTimeout(() => {
-                    setChatMessages(prevMsgs => {
-                        const updatedMsgs = prevMsgs.filter(m => m.id !== thinkingMsg2Id);
-                        const findingsText = block2Data?.findingsContent?.match(/<p>(.*?)<\/p>/)?.[1] || "Oto wyniki dla pytania 2.";
-                        return [...updatedMsgs, {sender: 'ai', text: findingsText.substring(0,100) + (findingsText.length > 100 ? "..." : "")}];
-                    });
-                }, 50);
-            }, 150); 
-        }
         setIsLoading(false);
     }, [params, userCreatedAnalyses, generateAndDisplayFullAnalysis]);
 
