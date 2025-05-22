@@ -18,8 +18,8 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
         let blockSpecificQuestionId = questionIdCounter;
 
         if (!isInitial) {
-            blockSpecificQuestionId = questionIdCounter + 1;
-            // setQuestionIdCounter will be called after this function successfully adds the block
+            // Use the current counter for this block's ID, then schedule an update for the next one
+            blockSpecificQuestionId = questionIdCounter + 1; 
         }
         
         const analysisBlockId = isInitial ? 'initial-analysis' : `analysis-q-${blockSpecificQuestionId}`;
@@ -50,7 +50,7 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
                     `Jakie są kluczowe wskaźniki dla ${effectiveTopicContext}?`,
                     `Poproś o szczegółową analizę X w kontekście ${effectiveTopicContext}.`
                 ];
-            } else { // Default for "Analiza Holistyczna" / "Analiza Początkowa" (demo/classic)
+            } else { 
                 findingsContent = `<p>Agent zidentyfikował, że produkty o relatywnie wysokim koszcie materiału nie zawsze korelują z najdłuższym czasem realizacji...</p><p>Dodatkowo, pewna grupa produktów charakteryzująca się niskim 'Wartość Dodana VA %'...</p>`;
                 thoughtProcessContent = `<p>Aby sformułować te spostrzeżenia, Agent wykonał następujące kroki:</p><ul class="mt-2 space-y-1"><li>Agent obliczył złożone wskaźniki...</li><li>Agent przeprowadził analizę kwadrantową...</li><li>Agent porównał profile kosztowe...</li></ul>`;
                 newSuggestionsContent = ["Które kategorie produktów wykazują największą dysproporcję...?", "Czy istnieje segment produktów, gdzie wysoka wartość 'NVA %'...", "Jakie czynniki, poza bezpośrednimi kosztami..."];
@@ -74,16 +74,22 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
         };
         
         setAnalysisBlocksStore(prevBlocks => {
+            let newBlocksArray;
             if (isInitial) { 
-                return [newBlockData]; 
+                newBlocksArray = [newBlockData]; 
+            } else {
+                const existingIndex = prevBlocks.findIndex(b => b.id === analysisBlockId);
+                if (existingIndex > -1) { 
+                    const updatedBlocks = [...prevBlocks];
+                    updatedBlocks[existingIndex] = newBlockData;
+                    newBlocksArray = updatedBlocks;
+                } else {
+                    newBlocksArray = [...prevBlocks, newBlockData];
+                }
             }
-            const existingIndex = prevBlocks.findIndex(b => b.id === analysisBlockId);
-            if (existingIndex > -1) { 
-                const updatedBlocks = [...prevBlocks];
-                updatedBlocks[existingIndex] = newBlockData;
-                return updatedBlocks;
-            }
-            return [...prevBlocks, newBlockData]; 
+            // Set current index after blocks are updated
+            setCurrentAnalysisIndex(isInitial ? 0 : newBlocksArray.length - 1);
+            return newBlocksArray;
         });
         
         if (!isInitial) {
@@ -94,27 +100,13 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
 
 
     useEffect(() => {
-        if (analysisBlocksStore.length > 0) {
-            const lastBlock = analysisBlocksStore[analysisBlocksStore.length - 1];
-            if (lastBlock && lastBlock.id !== 'initial-analysis') {
-                setCurrentAnalysisIndex(analysisBlocksStore.length - 1);
-            } else { 
-                setCurrentAnalysisIndex(0);
-            }
-        } else {
-            setCurrentAnalysisIndex(0); 
-        }
-    }, [analysisBlocksStore]);
-
-
-    useEffect(() => {
         setIsLoading(true);
         const newParams = params || {};
         let currentMode = newParams.mode;
         let analysisNameFromParams = newParams.analysisName;
         let fileNameFromParams = newParams.fileName;
         let newContextTitle = "Moje Analizy";
-        let shouldAddDefaultQuestions = false; // Default to false
+        let shouldAddDefaultQuestions = false;
 
         if (currentMode === 'my_analyses') {
             if (userCreatedAnalyses.length > 0) {
@@ -132,16 +124,25 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
             }
         } else if (currentMode === 'real' && analysisNameFromParams) {
             newContextTitle = analysisNameFromParams;
-            // shouldAddDefaultQuestions remains false
+            shouldAddDefaultQuestions = false; 
         } else if (currentMode === 'classic' || currentMode === 'demo' || !currentMode ) { 
-            // This is the only case where demo questions should be added
             newContextTitle = "Analiza Holistyczna"; 
             currentMode = 'demo'; 
             shouldAddDefaultQuestions = true; 
-        } else if (newParams.topicContext) { // Handling static topics if re-introduced
+        } else if (newParams.topicContext && !userCreatedAnalyses.find(a => a.name === newParams.topicContext)) { 
+            // This condition handles if a static topic (like 'Analiza Holistyczna') is clicked from sidebar
+            // when it's not a user-created one.
             newContextTitle = newParams.topicContext;
-            currentMode = 'demo'; // Treat as demo
+            currentMode = 'demo'; 
             shouldAddDefaultQuestions = true;
+        } else if (newParams.topicContext && userCreatedAnalyses.find(a => a.name === newParams.topicContext)) {
+            // User clicked on one of their own analyses from the sidebar
+            const userAnalysis = userCreatedAnalyses.find(a => a.name === newParams.topicContext);
+            analysisNameFromParams = userAnalysis.name;
+            fileNameFromParams = userAnalysis.fileName;
+            currentMode = 'real';
+            newContextTitle = analysisNameFromParams;
+            shouldAddDefaultQuestions = false;
         }
         
         setCurrentDashboardContextTitle(newContextTitle);
@@ -151,7 +152,7 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
 
         if (currentMode === 'real') {
             generateAndDisplayFullAnalysis(`Analiza dla: ${analysisNameFromParams} (Plik: ${fileNameFromParams})`, true, true, newContextTitle);
-            setChatMessages(prev => [...prev, { sender: 'ai', text: `Załadowano analizę: ${analysisNameFromParams}` }]);
+            setChatMessages(prev => [{ sender: 'ai', text: `Załadowano analizę: ${analysisNameFromParams}` }]);
         } else if (currentMode === 'demo') { 
             generateAndDisplayFullAnalysis(newContextTitle, true, false, newContextTitle); 
         }
@@ -161,36 +162,32 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
                 const q1 = "Zidentyfikuj produkty, gdzie koszt przezbrojenia ma nieproporcjonalnie duży wpływ na całkowity koszt jednostkowy w stosunku do wolumenu produkcji.";
                 const block1Data = generateAndDisplayFullAnalysis(q1, false, false, newContextTitle);
                 setChatMessages(prev => [...prev, {sender: 'user', text: q1}]);
-                const thinkingMsg1Id = Date.now() + "_q1"; // Unique ID for thinking message
+                const thinkingMsg1Id = Date.now() + "_q1_think";
+                setChatMessages(prev => [...prev, {sender: 'ai', text: `Agent analizuje: "${q1.substring(0,25)}..."`, id: thinkingMsg1Id}]);
                 setTimeout(() => {
-                    setChatMessages(prev => [...prev, {sender: 'ai', text: `Agent analizuje: "${q1.substring(0,25)}..."`, id: thinkingMsg1Id}]);
-                    setTimeout(() => {
-                        setChatMessages(prevMsgs => {
-                            const updatedMsgs = prevMsgs.filter(m => m.id !== thinkingMsg1Id);
-                            const findingsText = block1Data?.findingsContent?.match(/<p>(.*?)<\/p>/)?.[1] || "Oto wyniki dla pytania 1.";
-                            return [...updatedMsgs, {sender: 'ai', text: findingsText.substring(0,100) + (findingsText.length > 100 ? "..." : "")}];
-                        });
-                    }, 50); 
+                    setChatMessages(prevMsgs => {
+                        const updatedMsgs = prevMsgs.filter(m => m.id !== thinkingMsg1Id);
+                        const findingsText = block1Data?.findingsContent?.match(/<p>(.*?)<\/p>/)?.[1] || "Oto wyniki dla pytania 1.";
+                        return [...updatedMsgs, {sender: 'ai', text: findingsText.substring(0,100) + (findingsText.length > 100 ? "..." : "")}];
+                    });
                 }, 50); 
-
+                
                 const q2 = "Czy istnieje grupa produktów o podobnej strukturze kosztów, ale znacząco różniąca się rentownością godzinową? Jakie mogą być tego przyczyny?";
                 const block2Data = generateAndDisplayFullAnalysis(q2, false, false, newContextTitle);
                 setChatMessages(prev => [...prev, {sender: 'user', text: q2}]);
-                const thinkingMsg2Id = Date.now() + "_q2";
-                setTimeout(() => {
-                    setChatMessages(prev => [...prev, {sender: 'ai', text: `Agent analizuje: "${q2.substring(0,25)}..."`, id: thinkingMsg2Id}]);
-                    setTimeout(() => {
-                        setChatMessages(prevMsgs => {
-                            const updatedMsgs = prevMsgs.filter(m => m.id !== thinkingMsg2Id);
-                            const findingsText = block2Data?.findingsContent?.match(/<p>(.*?)<\/p>/)?.[1] || "Oto wyniki dla pytania 2.";
-                            return [...updatedMsgs, {sender: 'ai', text: findingsText.substring(0,100) + (findingsText.length > 100 ? "..." : "")}];
-                        });
-                    }, 50);
-                }, 100); 
+                const thinkingMsg2Id = Date.now() + "_q2_think";
+                setChatMessages(prev => [...prev, {sender: 'ai', text: `Agent analizuje: "${q2.substring(0,25)}..."`, id: thinkingMsg2Id}]);
+                 setTimeout(() => {
+                    setChatMessages(prevMsgs => {
+                        const updatedMsgs = prevMsgs.filter(m => m.id !== thinkingMsg2Id);
+                        const findingsText = block2Data?.findingsContent?.match(/<p>(.*?)<\/p>/)?.[1] || "Oto wyniki dla pytania 2.";
+                        return [...updatedMsgs, {sender: 'ai', text: findingsText.substring(0,100) + (findingsText.length > 100 ? "..." : "")}];
+                    });
+                }, 50);
             }, 150); 
         }
         setIsLoading(false);
-    }, [params, userCreatedAnalyses, generateAndDisplayFullAnalysis]);
+    }, [params, userCreatedAnalyses, generateAndDisplayFullAnalysis]); // generateAndDisplayFullAnalysis is now a dependency
 
 
     const handleSelectTopic = (topic) => {
@@ -200,14 +197,14 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
         }
         if (topic.type === 'real') {
             onNavigateToLanding({ dashboardParams: { mode: 'real', analysisName: topic.name, fileName: topic.fileName }});
-        } else { 
-             onNavigateToLanding({ dashboardParams: { topicContext: topic.name, mode: 'classic' }});
+        } else { // Was for static topics, now effectively a demo mode for that topic name
+             onNavigateToLanding({ dashboardParams: { topicContext: topic.name, mode: 'demo' }});
         }
     };
 
     const handleSendMessage = (messageText) => {
         setChatMessages(prev => [...prev, { sender: 'user', text: messageText }]);
-        const thinkingMessageId = Date.now() + "_thinking"; // Unique ID for this thinking message
+        const thinkingMessageId = Date.now() + "_thinking"; 
         
         setTimeout(() => { 
             const thinkingMessageText = `Agent analizuje: "${messageText.substring(0,25)}..."`;
@@ -226,7 +223,7 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
                     }
                 }
                 setChatMessages(prev => {
-                    const updatedMessages = prev.filter(msg => msg.id !== thinkingMessageId); // Filter by unique ID
+                    const updatedMessages = prev.filter(msg => msg.id !== thinkingMessageId); 
                     return [...updatedMessages, { sender: 'ai', text: aiChatResponseSummary }];
                 });
             }, 100); 
