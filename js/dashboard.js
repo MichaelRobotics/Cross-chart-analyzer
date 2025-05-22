@@ -18,7 +18,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let analysisBlocksStore = [];
     let currentAnalysisIndex = 0;
     let questionIdCounter = 0;
-    let currentDashboardContextTitle = "Analiza Holistyczna"; // Default or set by URL params
+    let currentDashboardContextTitle = "Moje Analizy"; // Default title when no specific analysis is loaded
+
+    // Static topics are no longer defined here or added to the sidebar
+
 
     // --- Initialization ---
     function initializeDashboard() {
@@ -32,12 +35,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let analysisToLoadName = params.analysisName;
         let analysisToLoadFileName = params.fileName;
-        let analysisToLoadMode = params.mode || 'classic'; // Default to 'classic' if no mode
-        let analysisToLoadTopicContext = params.topicContext;
+        let analysisToLoadMode = params.mode; // No default to 'classic' here
         
         const userAnalyses = getUserCreatedAnalyses(); // From shared.js
 
-        if (analysisToLoadMode === 'my_analyses') {
+        if (analysisToLoadMode === 'my_analyses' || (!analysisToLoadName && !params.topicContext)) { // If mode is my_analyses or no specific analysis/topic is given
             if (userAnalyses.length > 0) {
                 const latestAnalysis = userAnalyses[0];
                 analysisToLoadName = latestAnalysis.name;
@@ -55,8 +57,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 setupDashboardMainEventListeners();
                 return;
             }
-        } else {
-            currentDashboardContextTitle = analysisToLoadName || analysisToLoadTopicContext || "Analiza Holistyczna";
+        } else if (params.topicContext) { // This case is for static topics, which we are removing
+             // For now, if a static topic is somehow linked, treat it as "Moje Analizy" or redirect
+            currentDashboardContextTitle = params.topicContext; // Or handle as an error/redirect
+            // Potentially load a default view or show an error as static topics are removed
+        }
+         else { // Specific analysis from URL
+            currentDashboardContextTitle = analysisToLoadName || "Moje Analizy";
         }
 
         if(chatInteractionWrapper) chatInteractionWrapper.style.display = 'block';
@@ -76,25 +83,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (analysisToLoadMode === 'real' && analysisToLoadName) {
             generateAndDisplayFullAnalysis(`Analiza dla: ${analysisToLoadName} (Plik: ${analysisToLoadFileName})`, true, true, currentDashboardContextTitle);
             addChatMessageToDashboard(`Załadowano analizę: ${analysisToLoadName}`, 'ai');
-        } else if (analysisToLoadTopicContext && analysisToLoadMode !== 'my_analyses') {
-            generateAndDisplayFullAnalysis(analysisToLoadTopicContext, true, false, currentDashboardContextTitle);
-        } else if (analysisToLoadMode === 'classic' || (analysisToLoadMode === 'my_analyses' && userAnalyses.length === 0) ) {
-            // For 'classic' or 'my_analyses' with no user data, load default demo
-            currentDashboardContextTitle = "Analiza Holistyczna"; // Ensure context is demo
-            if (mainAnalysisTitle) mainAnalysisTitle.textContent = currentDashboardContextTitle;
-            document.title = `Dashboard - ${currentDashboardContextTitle}`;
-            updateSidebar(currentDashboardContextTitle); // Update sidebar for "Analiza Holistyczna"
-            if (analysisContentArea) { // Re-ensure initial block for demo
-                 analysisContentArea.innerHTML = '';
-                 analysisContentArea.appendChild(createInitialBlockDOMStructure(currentDashboardContextTitle));
-            }
-            generateAndDisplayFullAnalysis("Analiza Początkowa", true, false, currentDashboardContextTitle);
-            addDefaultDemoQuestions();
+            addDefaultDemoQuestions(); // Add demo questions for any loaded analysis for interaction
         }
-         else { // Default demo for "Analiza Holistyczna" or if other conditions aren't met
-            generateAndDisplayFullAnalysis("Analiza Początkowa", true, false, currentDashboardContextTitle);
-            addDefaultDemoQuestions();
-        }
+        // Removed 'else if (params.topicContext)' block as static topics are gone
+        // Removed 'else' block for default demo as it's handled by 'my_analyses' or direct load
 
         currentAnalysisIndex = analysisBlocksStore.findIndex(b => b.id === 'initial-analysis');
         if (currentAnalysisIndex === -1 && analysisBlocksStore.length > 0) {
@@ -107,14 +99,14 @@ document.addEventListener('DOMContentLoaded', () => {
         setupDashboardMainEventListeners();
     }
     
-    function addDefaultDemoQuestions() {
+    function addDefaultDemoQuestions() { // This can be called for any loaded analysis context
         const pregenQuestion1 = "Zidentyfikuj produkty, gdzie koszt przezbrojenia ma nieproporcjonalnie duży wpływ na całkowity koszt jednostkowy w stosunku do wolumenu produkcji.";
-        generateAndDisplayFullAnalysis(pregenQuestion1, false, false, null);
+        generateAndDisplayFullAnalysis(pregenQuestion1, false, false, currentDashboardContextTitle); // Pass current context
         addChatMessageToDashboard(pregenQuestion1, 'user');
         addChatMessageToDashboard(`Agent analizuje: "${pregenQuestion1.substring(0, 25)}...". Wyniki powyżej.`, 'ai');
 
         const pregenQuestion2 = "Czy istnieje grupa produktów o podobnej strukturze kosztów, ale znacząco różniąca się rentownością godzinową? Jakie mogą być tego przyczyny?";
-        generateAndDisplayFullAnalysis(pregenQuestion2, false, false, null);
+        generateAndDisplayFullAnalysis(pregenQuestion2, false, false, currentDashboardContextTitle); // Pass current context
         addChatMessageToDashboard(pregenQuestion2, 'user');
         addChatMessageToDashboard(`Agent analizuje: "${pregenQuestion2.substring(0, 25)}...". Wyniki powyżej.`, 'ai');
     }
@@ -135,47 +127,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateSidebar(activeAnalysisName = null) {
         if (!dashboardSidebarNavList) return;
-        const userAnalyses = getUserCreatedAnalyses(); // From shared.js
+        const userAnalyses = getUserCreatedAnalyses(); 
 
-        dashboardSidebarNavList.querySelectorAll('.dynamic-analysis-item').forEach(item => item.remove());
+        dashboardSidebarNavList.innerHTML = ''; 
+        dashboardSidebarNavList.classList.add('is-loading'); 
 
-        for (let i = userAnalyses.length - 1; i >= 0; i--) {
-            const analysis = userAnalyses[i];
+        userAnalyses.forEach(analysis => { 
             const li = document.createElement('li');
             const a = document.createElement('a');
+            // Link directly to load this specific analysis
             a.href = `analysis-dashboard.html?mode=real&analysisName=${encodeURIComponent(analysis.name)}&fileName=${encodeURIComponent(analysis.fileName)}`;
             a.classList.add('sidebar-item', 'block', 'px-4', 'py-2.5', 'text-sm', 'font-medium', 'dynamic-analysis-item');
-            a.dataset.analysisTopic = analysis.name; // Keep for consistency, though href is primary
+            a.dataset.analysisTopic = analysis.name; 
             a.textContent = analysis.name;
             li.appendChild(a);
-            dashboardSidebarNavList.prepend(li);
-        }
-
-        dashboardSidebarNavList.querySelectorAll('.sidebar-item').forEach(item => {
-            item.classList.remove('active');
-            // Update href for static items to use URL params
-            if (item.dataset.staticItem === "true") {
-                item.href = `analysis-dashboard.html?topicContext=${encodeURIComponent(item.dataset.analysisTopic)}`;
-            }
+            dashboardSidebarNavList.prepend(li); 
         });
 
+        // Static topics are no longer added here
+        
         let itemToActivate = null;
         if (activeAnalysisName) {
             itemToActivate = dashboardSidebarNavList.querySelector(`.sidebar-item[data-analysis-topic="${activeAnalysisName}"]`);
         }
         
+        dashboardSidebarNavList.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+
         if (itemToActivate) {
             itemToActivate.classList.add('active');
-        } else {
-            const firstStaticItem = dashboardSidebarNavList.querySelector('.sidebar-item[data-static-item="true"]');
-            if (firstStaticItem) {
-                 firstStaticItem.classList.add('active');
-            } else { 
-                const firstItem = dashboardSidebarNavList.querySelector('.sidebar-item');
-                if (firstItem) firstItem.classList.add('active');
-            }
+        } else if (userAnalyses.length > 0) {
+            // If no specific active one, and user analyses exist, activate the first one (newest)
+            const firstUserAnalysisItem = dashboardSidebarNavList.querySelector('.dynamic-analysis-item');
+            if (firstUserAnalysisItem) firstUserAnalysisItem.classList.add('active');
         }
-        // No need to call setupDashboardSidebarEventListeners here, navigation handles page reload
+        // No need to setup sidebar event listeners if navigation causes page reload
+        
+        requestAnimationFrame(() => { 
+            dashboardSidebarNavList.classList.remove('is-loading');
+        });
     }
     
     function setupDashboardMainEventListeners() {
@@ -229,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!prevAnalysisBtn || !nextAnalysisBtn) { console.error("Navigation buttons not found for update."); return; }
 
         if (mainAnalysisTitle) {
-            mainAnalysisTitle.textContent = currentDashboardContextTitle || "Analiza";
+            mainAnalysisTitle.textContent = currentDashboardContextTitle || "Moje Analizy";
         }
 
         if (analysisBlocksStore.length === 0) {
@@ -315,18 +304,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     `Jakie są trendy w danych dla ${ (effectiveTopicContext).substring(0,20)}...?`,
                     `Czy można zidentyfikować anomalie w ${(effectiveTopicContext).substring(0,20)}...?`
                 ];
-            } else if (effectiveTopicContext && effectiveTopicContext !== "Analiza Holistyczna" && effectiveTopicContext !== "Analiza Początkowa" ) { 
-                 findingsContent = `<p>Dane dla tematu '<strong>${effectiveTopicContext}</strong>' są obecnie symulowane.</p><p>Możesz zadać pytania dotyczące tego tematu w czacie poniżej.</p>`;
-                thoughtProcessContent = `<p>Analiza dla '<strong>${effectiveTopicContext}</strong>' jest w toku. Agent jest gotowy na Twoje pytania.</p>`;
-                newSuggestionsContent = [
-                    `Jakie są kluczowe wskaźniki dla ${effectiveTopicContext}?`,
-                    `Poproś o szczegółową analizę X w kontekście ${effectiveTopicContext}.`
-                ];
-            }
-             else { 
-                findingsContent = `<p>Agent zidentyfikował, że produkty o relatywnie wysokim koszcie materiału nie zawsze korelują z najdłuższym czasem realizacji...</p><p>Dodatkowo, pewna grupa produktów charakteryzująca się niskim 'Wartość Dodana VA %'...</p>`;
-                thoughtProcessContent = `<p>Aby sformułować te spostrzeżenia, Agent wykonał następujące kroki:</p><ul class="mt-2 space-y-1"><li>Agent obliczył złożone wskaźniki...</li><li>Agent przeprowadził analizę kwadrantową...</li><li>Agent porównał profile kosztowe...</li></ul>`;
-                newSuggestionsContent = ["Które kategorie produktów wykazują największą dysproporcję...?", "Czy istnieje segment produktów, gdzie wysoka wartość 'NVA %'...", "Jakie czynniki, poza bezpośrednimi kosztami..."];
+            } else { // Default content for initial block if not real data (e.g. for "Moje Analizy" empty state this won't be shown)
+                findingsContent = `<p>Wybierz analizę z panelu bocznego lub załaduj nowy plik CSV.</p>`;
+                if (effectiveTopicContext && effectiveTopicContext !== "Moje Analizy") { // More specific if a topic was somehow loaded
+                     findingsContent = `<p>Dane dla tematu '<strong>${effectiveTopicContext}</strong>' są obecnie symulowane.</p><p>Możesz zadać pytania dotyczące tego tematu w czacie poniżej.</p>`;
+                }
+                thoughtProcessContent = `<p>Proces myślowy pojawi się tutaj po wygenerowaniu analizy.</p>`;
+                newSuggestionsContent = ["Zadaj pytanie, aby rozpocząć interakcję."];
             }
         } else { 
             findingsHeading = "Wynik";
