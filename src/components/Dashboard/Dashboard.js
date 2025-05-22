@@ -15,11 +15,10 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
 
     const generateAndDisplayFullAnalysis = useCallback((questionText, isInitial = false, isRealData = false, topicContextForContent = null) => {
         let newBlockData;
-        let blockSpecificQuestionId = questionIdCounter;
+        let blockSpecificQuestionId = questionIdCounter; // Use current counter for ID generation if !isInitial
 
         if (!isInitial) {
-            // Use the current counter for this block's ID, then schedule an update for the next one
-            blockSpecificQuestionId = questionIdCounter + 1; 
+            blockSpecificQuestionId = questionIdCounter + 1; // This ID will be for the new block
         }
         
         const analysisBlockId = isInitial ? 'initial-analysis' : `analysis-q-${blockSpecificQuestionId}`;
@@ -77,23 +76,17 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
             let newBlocksArray;
             if (isInitial) { 
                 newBlocksArray = [newBlockData]; 
+                setCurrentAnalysisIndex(0); // Set index for initial block
             } else {
-                const existingIndex = prevBlocks.findIndex(b => b.id === analysisBlockId);
-                if (existingIndex > -1) { 
-                    const updatedBlocks = [...prevBlocks];
-                    updatedBlocks[existingIndex] = newBlockData;
-                    newBlocksArray = updatedBlocks;
-                } else {
-                    newBlocksArray = [...prevBlocks, newBlockData];
-                }
+                // For new question blocks, always append.
+                newBlocksArray = [...prevBlocks, newBlockData];
+                setCurrentAnalysisIndex(newBlocksArray.length - 1); // Set index to the new block
             }
-            // Set current index after blocks are updated
-            setCurrentAnalysisIndex(isInitial ? 0 : newBlocksArray.length - 1);
-            return newBlocksArray;
+            return newBlocksArray; 
         });
         
         if (!isInitial) {
-            setQuestionIdCounter(blockSpecificQuestionId); 
+            setQuestionIdCounter(prevCounter => prevCounter + 1); // Increment counter after use
         }
         return newBlockData; 
     }, [currentDashboardContextTitle, questionIdCounter]);
@@ -129,20 +122,13 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
             newContextTitle = "Analiza Holistyczna"; 
             currentMode = 'demo'; 
             shouldAddDefaultQuestions = true; 
-        } else if (newParams.topicContext && !userCreatedAnalyses.find(a => a.name === newParams.topicContext)) { 
-            // This condition handles if a static topic (like 'Analiza Holistyczna') is clicked from sidebar
-            // when it's not a user-created one.
+        } else if (newParams.topicContext) { 
+            // This handles clicking on a static topic name if they were present.
+            // Since static topics are removed, this path might be less relevant,
+            // but we can treat it as loading a demo for that topic name.
             newContextTitle = newParams.topicContext;
             currentMode = 'demo'; 
             shouldAddDefaultQuestions = true;
-        } else if (newParams.topicContext && userCreatedAnalyses.find(a => a.name === newParams.topicContext)) {
-            // User clicked on one of their own analyses from the sidebar
-            const userAnalysis = userCreatedAnalyses.find(a => a.name === newParams.topicContext);
-            analysisNameFromParams = userAnalysis.name;
-            fileNameFromParams = userAnalysis.fileName;
-            currentMode = 'real';
-            newContextTitle = analysisNameFromParams;
-            shouldAddDefaultQuestions = false;
         }
         
         setCurrentDashboardContextTitle(newContextTitle);
@@ -187,7 +173,7 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
             }, 150); 
         }
         setIsLoading(false);
-    }, [params, userCreatedAnalyses, generateAndDisplayFullAnalysis]); // generateAndDisplayFullAnalysis is now a dependency
+    }, [params, userCreatedAnalyses, generateAndDisplayFullAnalysis]);
 
 
     const handleSelectTopic = (topic) => {
@@ -197,14 +183,14 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
         }
         if (topic.type === 'real') {
             onNavigateToLanding({ dashboardParams: { mode: 'real', analysisName: topic.name, fileName: topic.fileName }});
-        } else { // Was for static topics, now effectively a demo mode for that topic name
-             onNavigateToLanding({ dashboardParams: { topicContext: topic.name, mode: 'demo' }});
+        } else { 
+             onNavigateToLanding({ dashboardParams: { topicContext: topic.name, mode: 'classic' }});
         }
     };
 
     const handleSendMessage = (messageText) => {
         setChatMessages(prev => [...prev, { sender: 'user', text: messageText }]);
-        const thinkingMessageId = Date.now() + "_thinking"; 
+        const thinkingMessageId = Date.now() + "_thinking" + Math.random(); // More unique ID
         
         setTimeout(() => { 
             const thinkingMessageText = `Agent analizuje: "${messageText.substring(0,25)}..."`;
