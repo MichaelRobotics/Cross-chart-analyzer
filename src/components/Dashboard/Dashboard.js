@@ -1,3 +1,4 @@
+// michaelrobotics/cross-chart-analyzer/Cross-chart-analyzer-react-version/src/components/Dashboard/Dashboard.js
 import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from './Sidebar';
 import AnalysisContent from './AnalysisContent';
@@ -7,27 +8,24 @@ import { useAnalysisContext } from '../../contexts/AnalysisContext';
 const Dashboard = ({ params, onNavigateToLanding }) => {
     const [analysisBlocksStore, setAnalysisBlocksStore] = useState([]);
     const [currentAnalysisIndex, setCurrentAnalysisIndex] = useState(0);
-    const [questionIdCounter, setQuestionIdCounter] = useState(0);
+    const [questionIdCounter, setQuestionIdCounter] = useState(0); // Tracks the next available ID suffix
     const [currentDashboardContextTitle, setCurrentDashboardContextTitle] = useState("Moje Analizy");
     const [chatMessages, setChatMessages] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const { userCreatedAnalyses } = useAnalysisContext();
 
-    const generateAndDisplayFullAnalysis = useCallback((questionText, isInitial = false, isRealData = false, topicContextForContent = null) => {
-        let newBlockData;
-        let blockSpecificQuestionId = questionIdCounter; // Use current counter for ID generation if !isInitial
+    const generateAndDisplayFullAnalysis = useCallback((questionText, options) => {
+        // Options: { isInitial: bool, isRealData: bool, topicContext: string, blockIdSuffix?: string|number }
+        const { isInitial = false, isRealData = false, topicContextForContent = null, blockIdSuffix } = options;
 
-        if (!isInitial) {
-            blockSpecificQuestionId = questionIdCounter + 1; // This ID will be for the new block
-        }
-        
-        const analysisBlockId = isInitial ? 'initial-analysis' : `analysis-q-${blockSpecificQuestionId}`;
+        let newBlockData;
+        const analysisBlockId = isInitial ? 'initial-analysis' : `analysis-q-${blockIdSuffix}`;
         
         let blockTitleForNavigation;
         if (isInitial) {
             blockTitleForNavigation = topicContextForContent || questionText;
         } else {
-            blockTitleForNavigation = `Odpowiedź na pytanie ${blockSpecificQuestionId}`;
+            blockTitleForNavigation = `Odpowiedź na pytanie ${blockIdSuffix}`;
         }
 
         let findingsHeading, findingsContent, thoughtProcessContent, newSuggestionsContent;
@@ -76,20 +74,17 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
             let newBlocksArray;
             if (isInitial) { 
                 newBlocksArray = [newBlockData]; 
-                setCurrentAnalysisIndex(0); // Set index for initial block
+                setCurrentAnalysisIndex(0);
             } else {
-                // For new question blocks, always append.
                 newBlocksArray = [...prevBlocks, newBlockData];
-                setCurrentAnalysisIndex(newBlocksArray.length - 1); // Set index to the new block
+                setCurrentAnalysisIndex(newBlocksArray.length - 1);
             }
             return newBlocksArray; 
         });
         
-        if (!isInitial) {
-            setQuestionIdCounter(prevCounter => prevCounter + 1); // Increment counter after use
-        }
+        // Do NOT call setQuestionIdCounter here. It's managed by the caller for non-initial blocks.
         return newBlockData; 
-    }, [currentDashboardContextTitle, questionIdCounter]);
+    }, [currentDashboardContextTitle]); // Dependency only on currentDashboardContextTitle
 
 
     useEffect(() => {
@@ -100,6 +95,7 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
         let fileNameFromParams = newParams.fileName;
         let newContextTitle = "Moje Analizy";
         let shouldAddDefaultQuestions = false;
+        // let lastUsedIdSuffix = 0; // To track IDs for demo questions - moved local to timeout
 
         if (currentMode === 'my_analyses') {
             if (userCreatedAnalyses.length > 0) {
@@ -112,6 +108,7 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
                 setCurrentDashboardContextTitle("Moje Analizy");
                 setAnalysisBlocksStore([]); 
                 setChatMessages([]);
+                setQuestionIdCounter(0); // Reset counter
                 setIsLoading(false);
                 return; 
             }
@@ -123,30 +120,36 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
             currentMode = 'demo'; 
             shouldAddDefaultQuestions = true; 
         } else if (newParams.topicContext) { 
-            // This handles clicking on a static topic name if they were present.
-            // Since static topics are removed, this path might be less relevant,
-            // but we can treat it as loading a demo for that topic name.
             newContextTitle = newParams.topicContext;
             currentMode = 'demo'; 
             shouldAddDefaultQuestions = true;
         }
         
         setCurrentDashboardContextTitle(newContextTitle);
-        setQuestionIdCounter(0); 
         setAnalysisBlocksStore([]); 
         setChatMessages([]);      
+        setQuestionIdCounter(0); // Reset main counter when context changes
 
         if (currentMode === 'real') {
-            generateAndDisplayFullAnalysis(`Analiza dla: ${analysisNameFromParams} (Plik: ${fileNameFromParams})`, true, true, newContextTitle);
+            generateAndDisplayFullAnalysis(
+                `Analiza dla: ${analysisNameFromParams} (Plik: ${fileNameFromParams})`, 
+                { isInitial: true, isRealData: true, topicContextForContent: newContextTitle }
+            );
             setChatMessages(prev => [{ sender: 'ai', text: `Załadowano analizę: ${analysisNameFromParams}` }]);
         } else if (currentMode === 'demo') { 
-            generateAndDisplayFullAnalysis(newContextTitle, true, false, newContextTitle); 
+            generateAndDisplayFullAnalysis(
+                newContextTitle, 
+                { isInitial: true, isRealData: false, topicContextForContent: newContextTitle }
+            );
         }
         
         if (shouldAddDefaultQuestions) { 
              setTimeout(() => { 
+                let currentDemoIdSuffix = 0; // Local counter for this sequence of demo questions
+
                 const q1 = "Zidentyfikuj produkty, gdzie koszt przezbrojenia ma nieproporcjonalnie duży wpływ na całkowity koszt jednostkowy w stosunku do wolumenu produkcji.";
-                const block1Data = generateAndDisplayFullAnalysis(q1, false, false, newContextTitle);
+                currentDemoIdSuffix++;
+                const block1Data = generateAndDisplayFullAnalysis(q1, { blockIdSuffix: currentDemoIdSuffix, isInitial: false, isRealData: false, topicContextForContent: newContextTitle });
                 setChatMessages(prev => [...prev, {sender: 'user', text: q1}]);
                 const thinkingMsg1Id = Date.now() + "_q1_think";
                 setChatMessages(prev => [...prev, {sender: 'ai', text: `Agent analizuje: "${q1.substring(0,25)}..."`, id: thinkingMsg1Id}]);
@@ -159,7 +162,8 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
                 }, 50); 
                 
                 const q2 = "Czy istnieje grupa produktów o podobnej strukturze kosztów, ale znacząco różniąca się rentownością godzinową? Jakie mogą być tego przyczyny?";
-                const block2Data = generateAndDisplayFullAnalysis(q2, false, false, newContextTitle);
+                currentDemoIdSuffix++;
+                const block2Data = generateAndDisplayFullAnalysis(q2, { blockIdSuffix: currentDemoIdSuffix, isInitial: false, isRealData: false, topicContextForContent: newContextTitle });
                 setChatMessages(prev => [...prev, {sender: 'user', text: q2}]);
                 const thinkingMsg2Id = Date.now() + "_q2_think";
                 setChatMessages(prev => [...prev, {sender: 'ai', text: `Agent analizuje: "${q2.substring(0,25)}..."`, id: thinkingMsg2Id}]);
@@ -170,10 +174,15 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
                         return [...updatedMsgs, {sender: 'ai', text: findingsText.substring(0,100) + (findingsText.length > 100 ? "..." : "")}];
                     });
                 }, 50);
+                setQuestionIdCounter(currentDemoIdSuffix); // Update main counter to last used suffix from demo questions
             }, 150); 
+        } else {
+             // If no demo questions are added, ensure questionIdCounter is 0 if it was only an initial block.
+             // If an initial block was added, its ID is 'initial-analysis', so counter remains 0.
+            // setQuestionIdCounter(0); // This is already set above, so it should be fine.
         }
         setIsLoading(false);
-    }, [params, userCreatedAnalyses, generateAndDisplayFullAnalysis]);
+    }, [params, userCreatedAnalyses, generateAndDisplayFullAnalysis]); // generateAndDisplayFullAnalysis is still a dependency
 
 
     const handleSelectTopic = (topic) => {
@@ -190,13 +199,23 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
 
     const handleSendMessage = (messageText) => {
         setChatMessages(prev => [...prev, { sender: 'user', text: messageText }]);
-        const thinkingMessageId = Date.now() + "_thinking" + Math.random(); // More unique ID
+        const thinkingMessageId = Date.now() + "_thinking" + Math.random(); 
         
         setTimeout(() => { 
             const thinkingMessageText = `Agent analizuje: "${messageText.substring(0,25)}..."`;
             setChatMessages(prev => [...prev, { sender: 'ai', text: thinkingMessageText, id: thinkingMessageId }]);
 
-            const newBlockData = generateAndDisplayFullAnalysis(messageText, false, false, currentDashboardContextTitle);
+            const newBlockIdSuffix = questionIdCounter + 1; // Calculate next ID
+            const newBlockData = generateAndDisplayFullAnalysis(
+                messageText, 
+                { 
+                    isInitial: false, 
+                    isRealData: false, // Assuming chat responses are on demo/simulated data context
+                    topicContextForContent: currentDashboardContextTitle,
+                    blockIdSuffix: newBlockIdSuffix
+                }
+            );
+            setQuestionIdCounter(newBlockIdSuffix); // Update counter after using the ID
 
             setTimeout(() => {
                 let aiChatResponseSummary = `Oto wyniki dla pytania: "${messageText.substring(0, 25)}..."`; 
@@ -216,7 +235,6 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
 
         }, 500); 
     };
-
 
     if (isLoading) {
         return <div className="flex justify-center items-center min-h-screen text-white">Ładowanie dashboardu...</div>;
