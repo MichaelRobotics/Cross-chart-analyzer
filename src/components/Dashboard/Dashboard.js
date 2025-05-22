@@ -7,7 +7,7 @@ import { useAnalysisContext } from '../../contexts/AnalysisContext';
 const Dashboard = ({ params, onNavigateToLanding }) => {
     const [analysisBlocksStore, setAnalysisBlocksStore] = useState([]);
     const [currentAnalysisIndex, setCurrentAnalysisIndex] = useState(0);
-    const [questionIdCounter, setQuestionIdCounter] = useState(0);
+    const [questionIdCounter, setQuestionIdCounter] = useState(0); // Counter for unique IDs for question blocks
     const [currentDashboardContextTitle, setCurrentDashboardContextTitle] = useState("Moje Analizy");
     const [chatMessages, setChatMessages] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -15,20 +15,21 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
 
     const generateAndDisplayFullAnalysis = useCallback((questionText, isInitial = false, isRealData = false, topicContextForContent = null) => {
         let newBlockData;
-        let currentQId = questionIdCounter;
+        let currentQIdForThisBlock = questionIdCounter;
 
         if (!isInitial) {
-            currentQId = questionIdCounter + 1;
-            setQuestionIdCounter(currentQId); // Update for the next non-initial block
+            // Only increment if it's a new question block, not for the initial block
+            currentQIdForThisBlock = questionIdCounter + 1;
+            // The actual state update for the *next* call will happen after this function returns and is processed
         }
         
-        const analysisBlockId = isInitial ? 'initial-analysis' : `analysis-q-${currentQId}`;
+        const analysisBlockId = isInitial ? 'initial-analysis' : `analysis-q-${currentQIdForThisBlock}`;
         
         let blockTitleForNavigation;
         if (isInitial) {
             blockTitleForNavigation = topicContextForContent || questionText;
         } else {
-            blockTitleForNavigation = `Odpowiedź na pytanie ${currentQId}`;
+            blockTitleForNavigation = `Odpowiedź na pytanie ${currentQIdForThisBlock}`;
         }
 
         let findingsHeading, findingsContent, thoughtProcessContent, newSuggestionsContent;
@@ -50,7 +51,7 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
                     `Jakie są kluczowe wskaźniki dla ${effectiveTopicContext}?`,
                     `Poproś o szczegółową analizę X w kontekście ${effectiveTopicContext}.`
                 ];
-            } else { 
+            } else { // Default for "Analiza Holistyczna" / "Analiza Początkowa" (demo/classic)
                 findingsContent = `<p>Agent zidentyfikował, że produkty o relatywnie wysokim koszcie materiału nie zawsze korelują z najdłuższym czasem realizacji...</p><p>Dodatkowo, pewna grupa produktów charakteryzująca się niskim 'Wartość Dodana VA %'...</p>`;
                 thoughtProcessContent = `<p>Aby sformułować te spostrzeżenia, Agent wykonał następujące kroki:</p><ul class="mt-2 space-y-1"><li>Agent obliczył złożone wskaźniki...</li><li>Agent przeprowadził analizę kwadrantową...</li><li>Agent porównał profile kosztowe...</li></ul>`;
                 newSuggestionsContent = ["Które kategorie produktów wykazują największą dysproporcję...?", "Czy istnieje segment produktów, gdzie wysoka wartość 'NVA %'...", "Jakie czynniki, poza bezpośrednimi kosztami..."];
@@ -77,8 +78,6 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
             if (isInitial) { 
                 return [newBlockData]; 
             }
-            // For subsequent blocks, add to the existing store
-            // Ensure not to add duplicate if somehow called multiple times with same ID (though counter should prevent this)
             const existingIndex = prevBlocks.findIndex(b => b.id === analysisBlockId);
             if (existingIndex > -1) { 
                 const updatedBlocks = [...prevBlocks];
@@ -87,12 +86,15 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
             }
             return [...prevBlocks, newBlockData]; 
         });
-        return newBlockData; // Return the created block data
-    }, [currentDashboardContextTitle, questionIdCounter]); // Added questionIdCounter back as it's used to derive currentQId
+        
+        if (!isInitial) {
+            setQuestionIdCounter(currentQIdForThisBlock); // Update counter after using its value
+        }
+        return newBlockData; 
+    }, [currentDashboardContextTitle, questionIdCounter]);
 
 
     useEffect(() => {
-        // This effect correctly sets the currentAnalysisIndex after analysisBlocksStore is updated.
         if (analysisBlocksStore.length > 0) {
             const lastBlock = analysisBlocksStore[analysisBlocksStore.length - 1];
             if (lastBlock && lastBlock.id !== 'initial-analysis') { 
@@ -108,10 +110,10 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
 
     useEffect(() => {
         setIsLoading(true);
-        let currentMode = params.mode; 
-        let analysisNameFromParams = params.analysisName;
-        let fileNameFromParams = params.fileName;
-        let topicContextFromParams = params.topicContext;
+        const newParams = params || {};
+        let currentMode = newParams.mode;
+        let analysisNameFromParams = newParams.analysisName;
+        let fileNameFromParams = newParams.fileName;
         let newContextTitle = "Moje Analizy";
         let shouldAddDefaultQuestions = false;
 
@@ -131,21 +133,33 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
             }
         } else if (currentMode === 'real' && analysisNameFromParams) {
             newContextTitle = analysisNameFromParams;
-            // For user's real analyses, we don't add default demo questions automatically
-            shouldAddDefaultQuestions = false; 
-        } else if (topicContextFromParams) { 
-            newContextTitle = topicContextFromParams;
-            // This was for static topics, now removed. If somehow accessed, treat as demo.
+            shouldAddDefaultQuestions = false; // Explicitly NO demo questions for user's real analysis
+        } else if (currentMode === 'classic' || currentMode === 'demo' || !currentMode) {
+            // This covers explicit demo/classic mode, or if dashboard is loaded without specific params
+            newContextTitle = "Analiza Holistyczna"; 
             currentMode = 'demo'; 
-            shouldAddDefaultQuestions = true;
-        } else { // Default to demo ('classic' or no params at all)
-            newContextTitle = "Analiza Holistyczna"; // Default demo context
-            currentMode = 'demo';
-            shouldAddDefaultQuestions = true;
+            shouldAddDefaultQuestions = true; // Only add demo questions in this explicit demo scenario
+        } else { 
+            // Fallback for unknown modes - treat as empty "My Analyses"
+            newContextTitle = "Moje Analizy";
+            shouldAddDefaultQuestions = false;
+            if (userCreatedAnalyses.length > 0) { 
+                const latestAnalysis = userCreatedAnalyses[0];
+                analysisNameFromParams = latestAnalysis.name;
+                fileNameFromParams = latestAnalysis.fileName;
+                currentMode = 'real';
+                newContextTitle = analysisNameFromParams;
+            } else {
+                setCurrentDashboardContextTitle("Moje Analizy");
+                setAnalysisBlocksStore([]);
+                setChatMessages([]);
+                setIsLoading(false);
+                return;
+            }
         }
         
         setCurrentDashboardContextTitle(newContextTitle);
-        setQuestionIdCounter(0); // Reset question counter for a new context
+        setQuestionIdCounter(0); 
         setAnalysisBlocksStore([]); 
         setChatMessages([]);      
 
@@ -156,29 +170,36 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
             generateAndDisplayFullAnalysis(newContextTitle, true, false, newContextTitle); 
         }
         
-        if (shouldAddDefaultQuestions) {
+        if (shouldAddDefaultQuestions) { // Only add demo questions if explicitly in demo mode
              setTimeout(() => { 
                 const q1 = "Zidentyfikuj produkty, gdzie koszt przezbrojenia ma nieproporcjonalnie duży wpływ na całkowity koszt jednostkowy w stosunku do wolumenu produkcji.";
                 const block1Data = generateAndDisplayFullAnalysis(q1, false, false, newContextTitle);
-                setChatMessages(prev => [...prev, {sender: 'user', text: q1}, {sender: 'ai', text: `Agent analizuje: "${q1.substring(0,25)}..."`}]);
+                setChatMessages(prev => [...prev, {sender: 'user', text: q1}]);
+                // Add a slight delay for the "Agent analizuje" message before the actual one
                 setTimeout(() => {
-                    setChatMessages(prev => {
-                        const updated = prev.filter(m => !(m.sender === 'ai' && m.text.startsWith('Agent analizuje:')));
-                        const findingsText = block1Data?.findingsContent?.match(/<p>(.*?)<\/p>/)?.[1] || "Oto wyniki.";
-                        return [...updated, {sender: 'ai', text: findingsText.substring(0,100) + (findingsText.length > 100 ? "..." : "")}];
-                    });
-                }, 100);
-                
+                    setChatMessages(prev => [...prev, {sender: 'ai', text: `Agent analizuje: "${q1.substring(0,25)}..."`}]);
+                    setTimeout(() => {
+                        setChatMessages(prevMsgs => {
+                            const updatedMsgs = prevMsgs.filter(m => !(m.sender === 'ai' && m.text.startsWith('Agent analizuje:')));
+                            const findingsText = block1Data?.findingsContent?.match(/<p>(.*?)<\/p>/)?.[1] || "Oto wyniki dla pytania 1.";
+                            return [...updatedMsgs, {sender: 'ai', text: findingsText.substring(0,100) + (findingsText.length > 100 ? "..." : "")}];
+                        });
+                    }, 50); // Delay for "actual" answer
+                }, 50); // Delay for "thinking" message
+
                 const q2 = "Czy istnieje grupa produktów o podobnej strukturze kosztów, ale znacząco różniąca się rentownością godzinową? Jakie mogą być tego przyczyny?";
                 const block2Data = generateAndDisplayFullAnalysis(q2, false, false, newContextTitle);
-                setChatMessages(prev => [...prev, {sender: 'user', text: q2}, {sender: 'ai', text: `Agent analizuje: "${q2.substring(0,25)}...".`}]);
-                 setTimeout(() => {
-                    setChatMessages(prev => {
-                        const updated = prev.filter(m => !(m.sender === 'ai' && m.text.startsWith('Agent analizuje:')));
-                        const findingsText = block2Data?.findingsContent?.match(/<p>(.*?)<\/p>/)?.[1] || "Oto wyniki.";
-                        return [...updated, {sender: 'ai', text: findingsText.substring(0,100) + (findingsText.length > 100 ? "..." : "")}];
-                    });
-                }, 100);
+                setChatMessages(prev => [...prev, {sender: 'user', text: q2}]);
+                setTimeout(() => {
+                    setChatMessages(prev => [...prev, {sender: 'ai', text: `Agent analizuje: "${q2.substring(0,25)}..."`}]);
+                    setTimeout(() => {
+                        setChatMessages(prevMsgs => {
+                            const updatedMsgs = prevMsgs.filter(m => !(m.sender === 'ai' && m.text.startsWith('Agent analizuje:')));
+                            const findingsText = block2Data?.findingsContent?.match(/<p>(.*?)<\/p>/)?.[1] || "Oto wyniki dla pytania 2.";
+                            return [...updatedMsgs, {sender: 'ai', text: findingsText.substring(0,100) + (findingsText.length > 100 ? "..." : "")}];
+                        });
+                    }, 50);
+                }, 100); // Stagger demo question 2 slightly
             }, 150); 
         }
         setIsLoading(false);
@@ -200,35 +221,29 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
     const handleSendMessage = (messageText) => {
         setChatMessages(prev => [...prev, { sender: 'user', text: messageText }]);
         
-        setTimeout(() => { // Simulate AI thinking time before showing "Agent analizuje..."
+        setTimeout(() => { 
             const thinkingMessage = `Agent analizuje: "${messageText.substring(0,25)}..."`;
             setChatMessages(prev => [...prev, { sender: 'ai', text: thinkingMessage }]);
 
-            // Generate the full analysis block for the main content area
-            // This will also update questionIdCounter if it's a new question
             const newBlockData = generateAndDisplayFullAnalysis(messageText, false, false, currentDashboardContextTitle);
 
-            // After the block is generated, update the chat with a summary from it
-            // This timeout helps ensure newBlockData is from the latest call and state has settled
             setTimeout(() => {
-                let aiChatResponseSummary = `Oto wyniki dla pytania: "${messageText.substring(0, 25)}..."`; // Default
+                let aiChatResponseSummary = `Oto wyniki dla pytania: "${messageText.substring(0, 25)}..."`; 
                 if (newBlockData && newBlockData.findingsContent) {
-                    // Extract a summary from findingsContent (e.g., first paragraph)
                     const tempDiv = document.createElement('div');
-                    tempDiv.innerHTML = newBlockData.findingsContent; // Sanitize this if from real AI
+                    tempDiv.innerHTML = newBlockData.findingsContent; 
                     const firstP = tempDiv.querySelector('p');
                     if (firstP && firstP.textContent) {
                         aiChatResponseSummary = firstP.textContent.substring(0, 100) + (firstP.textContent.length > 100 ? "..." : "");
                     }
                 }
-                // Replace the "Agent analizuje..." message with the actual summary
                 setChatMessages(prev => {
                     const updatedMessages = prev.filter(msg => !(msg.text === thinkingMessage && msg.sender === 'ai'));
                     return [...updatedMessages, { sender: 'ai', text: aiChatResponseSummary }];
                 });
             }, 100); 
 
-        }, 500); // Initial delay for "thinking"
+        }, 500); 
     };
 
 
