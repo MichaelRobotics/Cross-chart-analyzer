@@ -1,428 +1,795 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Podgląd Analizy Agenta AI</title>
+    <title>Analizator Danych CSV</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        /* Global Resets and Box Sizing */
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%; 
+            box-sizing: border-box;
+        }
+        *, *:before, *:after { 
+            box-sizing: inherit;
+        }
+
+        /* General Body Styles */
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #1a202c;
             color: #e2e8f0;
+            transition: background-color 0.3s ease-in-out;
+            background-color: #111827; /* Default dark background for the entire page */
         }
-        .sidebar {
-            background-color: #2d3748;
+
+        /* Styles for Landing Page View */
+        body.landing-active {
+            background-color: #111827; 
+            min-height: 100vh; 
+            width: 100%; 
+            padding: 0; 
         }
-        .sidebar-item {
-            border-radius: 0.375rem;
-            transition: background-color 0.2s ease-in-out;
-        }
-        .sidebar-item.active, .sidebar-item:hover {
-            background-color: #4a5568;
-        }
-        .sidebar-item.active {
-            background-color: #007bff;
-            color: white;
-        }
-        .main-content-bg {
-            background-color: #2d3748;
-            border-radius: 0.5rem;
-        }
-        .analysis-content-area { 
-            background-color: #1f2937;
-            border-radius: 0.5rem;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            position: relative; 
-        }
-        .analysis-block { 
-            display: none; 
-        }
-        .analysis-block.active {
-            display: block;
-        }
-        .title-and-navigation-container {
+
+        #landing-page-view {
             display: flex;
-            justify-content: space-between;
+            flex-direction: column;
             align-items: center;
-            margin-bottom: 1rem; 
+            justify-content: center;
+            width: 100%;
+            min-height: 100vh; 
+            padding: 1rem; 
         }
-        .analysis-navigation-arrows { 
-            display: flex;
-            gap: 0.5rem; 
+
+        .landing-page-container { 
+            background-color: #1f2937; 
+            padding: 2rem 2.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
         }
-        .nav-arrow {
-            background-color: #4a5568;
-            color: #e2e8f0;
-            padding: 0.5rem 0.75rem;
+        .btn { 
+            display: block;
+            width: 100%;
+            padding: 0.75rem 1rem;
             border-radius: 0.375rem;
-            cursor: pointer;
-            font-size: 1.25rem; 
-            line-height: 1;
-            transition: background-color 0.2s ease-in-out;
+            font-weight: 500;
+            text-align: center;
+            transition: background-color 0.2s ease-in-out, opacity 0.2s ease-in-out;
             border: none;
+            cursor: pointer;
+            font-size: 0.95rem;
         }
-        .nav-arrow:hover {
-            background-color: #718096;
+        .btn-cyan { background-color: #06b6d4; color: white; }
+        .btn-cyan:hover { background-color: #0891b2; }
+        .btn-green { background-color: #10b981; color: white; }
+        .btn-green:hover { background-color: #059669; }
+        .btn-green:disabled { background-color: #34d399; opacity: 0.6; cursor: not-allowed; }
+        .btn-purple { background-color: #8b5cf6; color: white; }
+        .btn-purple:hover { background-color: #7c3aed; }
+        .btn-magenta { background-color: #d946ef; color: white; }
+        .btn-magenta:hover { background-color: #c026d3; }
+        .or-separator { margin: 1.25rem 0; color: #9ca3af; font-weight: 500; }
+        .landing-footer-link {
+            margin-top: 1.5rem; 
+            background-color: transparent; color: #9ca3af;
+            font-size: 0.875rem; font-weight: 500; padding: 0.5rem 1rem;
+            max-width: 500px; 
+            width: 100%; 
         }
-        .nav-arrow:disabled {
-            background-color: #374151; 
-            color: #6b7280;
-            cursor: not-allowed;
+        .landing-footer-link:hover { color: #60a5fa; background-color: #374151; }
+        .file-name-display { margin-top: 0.5rem; margin-bottom: 1rem; font-size: 0.8rem; color: #9ca3af; min-height: 1.2em; }
+
+        /* Styles for Dashboard View */
+        body.dashboard-active {
+            background-color: #1a202c; 
         }
-        .analysis-question-title {
-            font-size: 1.25rem; 
-            font-weight: 700; 
-            color: #a0aec0; 
-            margin-bottom: 1rem; 
-            padding-bottom: 0.5rem; 
-            border-bottom: 1px solid #4a5568;
-            white-space: nowrap;      /* Ensure it's one line */
-            overflow: hidden;         /* Hide overflow */
-            text-overflow: ellipsis;  /* Add ellipsis for overflow */
+        #dashboard-view-wrapper.dashboard-active-layout { 
+            display: flex;
+            flex-direction: column; 
+            min-height: 100vh;
         }
-        .unified-analysis-heading {
-            font-size: 1.125rem;
-            font-weight: 600;
-            color: #90cdf4;
-            margin-bottom: 0.5rem;
-            padding-top: 0.75rem;
+        @media (min-width: 768px) { 
+            #dashboard-view-wrapper.dashboard-active-layout {
+                flex-direction: row;
+            }
         }
-        .unified-analysis-heading:first-of-type {
-             padding-top: 0;
-        }
-        .analysis-content-area p, .analysis-content-area li {
-            font-size: 0.875rem;
-            color: #a0aec0;
-            line-height: 1.6;
-            margin-bottom: 0.5rem;
-        }
-        .analysis-content-area ul {
-            list-style-type: disc;
-            padding-left: 1.5rem;
-            margin-bottom: 0.75rem;
-        }
-        .analysis-content-area ul li { 
-            /* cursor: pointer; // Removed clickability */
-            /* transition: color 0.2s ease-in-out; // No longer needed */
-        }
-        /* .analysis-content-area ul li:hover {
-            color: #90cdf4; 
-        } */
-        .chat-input-container {
-            background-color: #1f2937;
-            border-radius: 0.5rem;
-        }
-        .chat-input {
-            background-color: #2d3748;
-            color: #e2e8f0;
-            border: 1px solid #4a5568;
-        }
-        .chat-input::placeholder {
-            color: #718096;
-        }
-        .chat-button {
-            background-color: #007bff;
-            color: white;
-        }
-        .bottom-button {
-            background-color: #007bff;
-            color: white;
-        }
+
+        .sidebar { background-color: #2d3748; }
+        .sidebar-item { border-radius: 0.375rem; transition: background-color 0.2s ease-in-out; }
+        .sidebar-item.active, .sidebar-item:hover { background-color: #4a5568; }
+        .sidebar-item.active { background-color: #007bff; color: white; }
+        .main-content-bg { background-color: #2d3748; border-radius: 0.5rem; }
+        .analysis-content-area { background-color: #1f2937; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem; position: relative; }
+        .analysis-block { display: none; }
+        .analysis-block.active { display: block; }
+        .title-and-navigation-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .analysis-navigation-arrows { display: flex; gap: 0.5rem; }
+        .nav-arrow { background-color: #4a5568; color: #e2e8f0; padding: 0.5rem 0.75rem; border-radius: 0.375rem; cursor: pointer; font-size: 1.25rem; line-height: 1; transition: background-color 0.2s ease-in-out; border: none; }
+        .nav-arrow:hover { background-color: #718096; }
+        .nav-arrow:disabled { background-color: #374151; color: #6b7280; cursor: not-allowed; }
+        .analysis-question-title { font-size: 1.25rem; font-weight: 700; color: #a0aec0; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #4a5568; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .unified-analysis-heading { font-size: 1.125rem; font-weight: 600; color: #90cdf4; margin-bottom: 0.5rem; padding-top: 0.75rem; }
+        .unified-analysis-heading:first-of-type { padding-top: 0; }
+        .analysis-content-area p, .analysis-content-area li { font-size: 0.875rem; color: #a0aec0; line-height: 1.6; margin-bottom: 0.5rem; }
+        .analysis-content-area ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.75rem; }
+        .chat-input-container { background-color: #1f2937; border-radius: 0.5rem; }
+        .chat-input { background-color: #2d3748; color: #e2e8f0; border: 1px solid #4a5568; }
+        .chat-input::placeholder { color: #718096; }
+        .chat-button { background-color: #007bff; color: white; }
+        .bottom-button { background-color: #007bff; color: white; } 
+        .dynamic-analysis-item {} /* Class for dynamically added sidebar items */
+        
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #2d3748; border-radius: 10px; }
         ::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #718096; }
+
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .modal-content { background-color: #2d3748; color: #e2e8f0; margin: auto; padding: 1.5rem 2rem; border-radius: 0.5rem; width: 90%; max-width: 450px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: left; }
+        .modal-title { font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem; color: #cbd5e1; }
+        .modal-input { width: 100%; padding: 0.65rem 0.75rem; margin-bottom: 1rem; border-radius: 0.375rem; background-color: #374151; border: 1px solid #4b5563; color: #e2e8f0; font-size: 0.9rem; }
+        .modal-input::placeholder { color: #9ca3af; }
+        .modal-buttons { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem; }
+        .modal-button { padding: 0.6rem 1.2rem; border-radius: 0.375rem; font-weight: 500; border: none; cursor: pointer; font-size: 0.9rem; }
+        .modal-button-primary { background-color: #007bff; color: white; }
+        .modal-button-primary:hover { background-color: #0056b3; }
+        .modal-button-secondary { background-color: #4a5568; color: #e2e8f0; }
+        .modal-button-secondary:hover { background-color: #718096; }
+
+        #custom-message-box { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background-color: #4a5568; color: white; padding: 1rem 1.5rem; border-radius: 0.375rem; z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.2); display: none; font-size: 0.9rem; }
+        #custom-message-box.active { display: block; }
+
+        .view-hidden { display: none !important; }
     </style>
 </head>
-<body class="flex flex-col md:flex-row min-h-screen">
+<body>
 
-    <aside class="sidebar w-full md:w-64 lg:w-72 p-4 space-y-2 shrink-0">
-        <h2 class="text-xl font-semibold mb-4 px-2 text-gray-300">Tematy Analizy</h2>
-        <nav>
-            <ul>
-                <li><a href="#" class="sidebar-item active block px-4 py-2.5 text-sm font-medium">Analiza Holistyczna</a></li>
-                <li><a href="#" class="sidebar-item block px-4 py-2.5 text-sm font-medium">Wąskie Gardła</a></li>
-                <li><a href="#" class="sidebar-item block px-4 py-2.5 text-sm font-medium">Wykorzystanie Stanowisk</a></li>
-                <li><a href="#" class="sidebar-item block px-4 py-2.5 text-sm font-medium">Jakość</a></li>
-            </ul>
-        </nav>
-        <div class="mt-auto pt-10">
-            <button class="bottom-button w-full py-2.5 px-4 rounded-md text-sm font-medium">Analizuj Nowy Plik</button>
+    <div id="landing-page-view">
+        <div class="landing-page-container">
+            <h1 class="text-3xl font-bold mb-3 text-white">Analizator Danych CSV</h1>
+            <p class="text-gray-400 mb-8 text-sm">
+                Prześlij plik CSV, aby uzyskać analizę opartą na AI, lub uruchom test z danymi demonstracyjnymi.
+            </p>
+            <input type="file" id="csv-file-input" accept=".csv" class="hidden">
+            <button id="select-csv-btn" class="btn btn-cyan mb-3">Wybierz plik CSV</button>
+            <div id="file-name-display" class="file-name-display">Nie wybrano pliku</div>
+            <button id="analyze-file-btn" class="btn btn-green" disabled>Analizuj Plik</button>
+            <div class="or-separator">LUB</div>
+            <button id="run-demo-btn" class="btn btn-purple mb-3">Uruchom Test z Danymi Demo</button>
+            <button id="connect-digital-twin-btn" class="btn btn-magenta">Połącz z Witness Digital Twin</button>
         </div>
-    </aside>
+        <button id="classic-version-btn" class="btn landing-footer-link">Analizator Danych CSV - Wersja Klasyczna</button>
+    </div>
 
-    <main class="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto">
-        <div class="main-content-bg p-6 md:p-8">
-            <div class="title-and-navigation-container">
-                <h1 id="main-analysis-title" class="text-2xl md:text-3xl font-bold text-white">Analiza Holistyczna</h1>
-                <div class="analysis-navigation-arrows">
-                    <button id="prev-analysis-btn" class="nav-arrow">&lt;</button>
-                    <button id="next-analysis-btn" class="nav-arrow">&gt;</button>
-                </div>
+    <div id="dashboard-view" class="view-hidden">
+      <div id="dashboard-view-wrapper">
+        <aside class="sidebar w-full md:w-64 lg:w-72 p-4 space-y-2 shrink-0">
+            <h2 class="text-xl font-semibold mb-4 px-2 text-gray-300">Tematy Analizy</h2>
+            <nav>
+                <ul id="dashboard-sidebar-nav-list">
+                    <li><a href="#" class="sidebar-item block px-4 py-2.5 text-sm font-medium" data-analysis-topic="Analiza Holistyczna" data-static-item="true">Analiza Holistyczna</a></li>
+                    <li><a href="#" class="sidebar-item block px-4 py-2.5 text-sm font-medium" data-analysis-topic="Wąskie Gardła" data-static-item="true">Wąskie Gardła</a></li>
+                    <li><a href="#" class="sidebar-item block px-4 py-2.5 text-sm font-medium" data-analysis-topic="Wykorzystanie Stanowisk" data-static-item="true">Wykorzystanie Stanowisk</a></li>
+                    <li><a href="#" class="sidebar-item block px-4 py-2.5 text-sm font-medium" data-analysis-topic="Jakość" data-static-item="true">Jakość</a></li>
+                </ul>
+            </nav>
+            <div class="mt-auto pt-10">
+                <button id="dashboard-analyze-new-btn" class="bottom-button w-full py-2.5 px-4 rounded-md text-sm font-medium">Analizuj Nowy Plik</button>
             </div>
+        </aside>
 
-            <div id="analysis-content-area" class="analysis-content-area">
-                <div id="initial-analysis" class="analysis-block active" data-block-title="Analiza Początkowa">
-                    <div>
-                        <h3 class="unified-analysis-heading">Wstępne Spostrzeżenia (Initial Findings)</h3>
-                        <div id="initial-findings-content">
-                            <p>Agent zidentyfikował, że produkty o relatywnie wysokim koszcie materiału nie zawsze korelują z najdłuższym czasem realizacji, co może wskazywać na zróżnicowaną efektywność łańcucha dostaw dla poszczególnych komponentów.</p>
-                            <p>Dodatkowo, pewna grupa produktów charakteryzująca się niskim 'Wartość Dodana VA %' jednocześnie generuje ponadprzeciętny 'Zysk na godzinę', co może sugerować unikalną strategię cenową lub specyficzną pozycję rynkową tych wyrobów.</p>
-                        </div>
-                    </div>
-                    <div class="mt-4">
-                        <h3 class="unified-analysis-heading">Proces Myślowy (Thought Process)</h3>
-                        <div id="thought-process-content">
-                            <p>Aby sformułować te spostrzeżenia, Agent wykonał następujące kroki:</p>
-                            <ul class="mt-2 space-y-1">
-                                <li>Agent obliczył złożone wskaźniki, takie jak stosunek kosztu materiału do całkowitego czasu cyklu, dla każdego produktu.</li>
-                                <li>Agent przeprowadził analizę kwadrantową, mapując produkty na osiach 'Wartość Dodana VA %' vs 'Zysk na godzinę', aby zidentyfikować nietypowe grupy.</li>
-                                <li>Agent porównał profile kosztowe produktów o podobnym czasie realizacji, ale znacząco różniących się udziałem kosztów materiałowych.</li>
-                            </ul>
-                        </div>
-                    </div>
-                    <div class="mt-4">
-                        <h3 class="unified-analysis-heading">Sugestie Dalszych Pytań (Suggestions for Other Questions)</h3>
-                        <ul id="initial-suggestions-list" class="space-y-1 question-suggestions-list">
-                            <li>Które kategorie produktów wykazują największą dysproporcję między udziałem kosztów materiałowych a całkowitym czasem realizacji i jakie mogą być tego przyczyny?</li>
-                            <li>Czy istnieje segment produktów, gdzie wysoka wartość 'NVA %' (Non-Value Added) jest kompensowana przez wyjątkowo wysoki 'Zysk na godzinę', i co charakteryzuje te produkty?</li>
-                            <li>Jakie czynniki, poza bezpośrednimi kosztami, mogą wpływać na rentowność produktów o niskiej wartości dodanej (VA%)?</li>
-                        </ul>
+        <main class="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto">
+            <div class="main-content-bg p-6 md:p-8">
+                <div class="title-and-navigation-container">
+                    <h1 id="main-analysis-title" class="text-2xl md:text-3xl font-bold text-white">Analiza Holistyczna</h1>
+                    <div class="analysis-navigation-arrows">
+                        <button id="prev-analysis-btn" class="nav-arrow">&lt;</button>
+                        <button id="next-analysis-btn" class="nav-arrow">&gt;</button>
                     </div>
                 </div>
-                </div>
-
-            <div class="symulowany-czat-container mt-8">
-                <h2 class="text-xl md:text-2xl font-bold mb-4 text-white">Dodatkowe Pytania (Symulowany Czat)</h2>
-                <div class="chat-input-container p-4 md:p-6">
-                    <div id="chat-messages" class="space-y-3 mb-4 h-64 overflow-y-auto p-3 bg-gray-800 rounded-md border border-gray-700">
+                <div id="analysis-content-area" class="analysis-content-area">
+                    </div>
+                <div class="symulowany-czat-container mt-8">
+                    <h2 class="text-xl md:text-2xl font-bold mb-4 text-white">Dodatkowe Pytania (Symulowany Czat)</h2>
+                    <div class="chat-input-container p-4 md:p-6">
+                        <div id="chat-messages" class="space-y-3 mb-4 h-64 overflow-y-auto p-3 bg-gray-800 rounded-md border border-gray-700"></div>
+                        <div class="flex items-center space-x-3">
+                            <input type="text" id="chat-input-field" class="chat-input flex-1 p-3 rounded-md text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Zadaj pytanie...">
+                            <button id="send-chat-button" class="chat-button py-3 px-6 rounded-md text-sm font-medium">Wyślij</button>
                         </div>
-                    <div class="flex items-center space-x-3">
-                        <input type="text" id="chat-input-field" class="chat-input flex-1 p-3 rounded-md text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Zadaj pytanie...">
-                        <button id="send-chat-button" class="chat-button py-3 px-6 rounded-md text-sm font-medium">Wyślij</button>
                     </div>
                 </div>
             </div>
+        </main>
+      </div>
+    </div>
+
+    <div id="analysis-name-modal" class="modal">
+        <div class="modal-content">
+            <h2 class="modal-title">Nazwa Analizy</h2>
+            <p class="text-sm text-gray-400 mb-3">Podaj nazwę dla tej analizy, aby łatwiej ją później zidentyfikować.</p>
+            <input type="text" id="analysis-name-input" class="modal-input" placeholder="Np. Analiza sprzedaży Q1">
+            <div class="modal-buttons">
+                <button id="cancel-analysis-name-btn" class="modal-button modal-button-secondary">Anuluj</button>
+                <button id="submit-analysis-name-btn" class="modal-button modal-button-primary">Rozpocznij Analizę</button>
+            </div>
         </div>
-    </main>
+    </div>
+    <div id="digital-twin-modal" class="modal">
+        <div class="modal-content">
+            <h2 class="modal-title">Połącz z Witness Digital Twin</h2>
+            <p class="text-sm text-gray-400 mb-3">Wprowadź dane dostępowe do Twojego Cyfrowego Bliźniaka Witness.</p>
+            <label for="digital-twin-id" class="block text-xs font-medium text-gray-400 mb-1">Digital Twin ID</label>
+            <input type="text" id="digital-twin-id" class="modal-input" placeholder="np. DT_ProjectAlpha_123">
+            <label for="access-code" class="block text-xs font-medium text-gray-400 mb-1 mt-2">Kod Dostępu</label>
+            <input type="password" id="access-code" class="modal-input" placeholder="••••••••">
+            <div class="modal-buttons">
+                <button id="cancel-digital-twin-btn" class="modal-button modal-button-secondary">Anuluj</button>
+                <button id="submit-digital-twin-btn" class="modal-button modal-button-primary">Połącz</button>
+            </div>
+        </div>
+    </div>
+    <div id="custom-message-box">Wiadomość</div>
 
     <script>
-        const sendButton = document.getElementById('send-chat-button');
-        const inputField = document.getElementById('chat-input-field');
-        const chatMessagesContainer = document.getElementById('chat-messages');
+        // --- DOM Elements ---
+        const bodyElement = document.body;
+        const landingPageView = document.getElementById('landing-page-view');
+        const dashboardView = document.getElementById('dashboard-view');
+        const dashboardViewWrapper = document.getElementById('dashboard-view-wrapper');
+
+        // Landing Page Elements
+        const selectCsvBtn = document.getElementById('select-csv-btn');
+        const csvFileInput = document.getElementById('csv-file-input');
+        const analyzeFileBtn = document.getElementById('analyze-file-btn');
+        const fileNameDisplay = document.getElementById('file-name-display');
+        const runDemoBtn = document.getElementById('run-demo-btn');
+        const connectDigitalTwinBtn = document.getElementById('connect-digital-twin-btn');
+        const classicVersionBtn = document.getElementById('classic-version-btn');
+        const analysisNameModal = document.getElementById('analysis-name-modal');
+        const analysisNameInput = document.getElementById('analysis-name-input');
+        const cancelAnalysisNameBtn = document.getElementById('cancel-analysis-name-btn');
+        const submitAnalysisNameBtn = document.getElementById('submit-analysis-name-btn');
+        const digitalTwinModal = document.getElementById('digital-twin-modal');
+        const digitalTwinIdInput = document.getElementById('digital-twin-id');
+        const accessCodeInput = document.getElementById('access-code');
+        const cancelDigitalTwinBtn = document.getElementById('cancel-digital-twin-btn');
+        const submitDigitalTwinBtn = document.getElementById('submit-digital-twin-btn');
         
+        // Dashboard Elements
+        const dashboardAnalyzeNewBtn = document.getElementById('dashboard-analyze-new-btn');
+        const sendChatButton = document.getElementById('send-chat-button');
+        const chatInputField = document.getElementById('chat-input-field');
+        const chatMessagesContainer = document.getElementById('chat-messages');
         const analysisContentArea = document.getElementById('analysis-content-area');
         const prevAnalysisBtn = document.getElementById('prev-analysis-btn');
         const nextAnalysisBtn = document.getElementById('next-analysis-btn');
-        const mainAnalysisTitle = document.getElementById('main-analysis-title'); 
+        const mainAnalysisTitle = document.getElementById('main-analysis-title');
+        const dashboardSidebarNavList = document.getElementById('dashboard-sidebar-nav-list');
 
-        let analysisBlocksStore = []; 
+        // Shared Elements
+        const customMessageBox = document.getElementById('custom-message-box');
+
+        // --- State Variables ---
+        let selectedFile = null;
+        let analysisBlocksStore = [];
         let currentAnalysisIndex = 0;
-        let questionIdCounter = 0;
+        let questionIdCounter = 0; 
+        let userCreatedAnalyses = []; 
 
-        function updateNavigation() {
+        // --- Utility Functions ---
+        function showCustomMessage(message, duration = 3000) {
+            if (!customMessageBox) { console.error("Custom message box not found!"); return; }
+            customMessageBox.textContent = message;
+            customMessageBox.classList.add('active');
+            setTimeout(() => {
+                customMessageBox.classList.remove('active');
+            }, duration);
+        }
+
+        function showView(viewName, params = {}) {
+            if (!bodyElement || !landingPageView || !dashboardView || !dashboardViewWrapper) {
+                console.error("Core view elements not found for showView!");
+                return;
+            }
+            if (viewName === 'landing') {
+                bodyElement.classList.add('landing-active');
+                bodyElement.classList.remove('dashboard-active');
+                dashboardViewWrapper.classList.remove('dashboard-active-layout');
+
+                landingPageView.classList.remove('view-hidden');
+                dashboardView.classList.add('view-hidden');
+                document.title = "Analizator Danych CSV - Strona Główna";
+            } else if (viewName === 'dashboard') {
+                bodyElement.classList.add('dashboard-active');
+                bodyElement.classList.remove('landing-active');
+                dashboardViewWrapper.classList.add('dashboard-active-layout');
+                
+                landingPageView.classList.add('view-hidden');
+                dashboardView.classList.remove('view-hidden');
+                document.title = params.analysisName ? `Dashboard - ${params.analysisName}` : (params.topicContext ? `Dashboard - ${params.topicContext}` : "Dashboard - Podgląd Analizy");
+                initializeDashboard(params); 
+            }
+        }
+
+        // --- Landing Page Logic ---
+        function initializeLandingPage() {
+            if (selectCsvBtn && csvFileInput) selectCsvBtn.addEventListener('click', () => { csvFileInput.click(); });
+            else console.error("selectCsvBtn or csvFileInput not found");
+
+            if (csvFileInput) csvFileInput.addEventListener('change', handleFileSelect);
+            else console.error("csvFileInput not found for change event");
+            
+            if (analyzeFileBtn) analyzeFileBtn.addEventListener('click', handleAnalyzeFile);
+            else console.error("analyzeFileBtn not found");
+
+            if (runDemoBtn) runDemoBtn.addEventListener('click', () => { showView('dashboard', { mode: 'demo' }); });
+            else console.error("runDemoBtn not found");
+            
+            if (classicVersionBtn) classicVersionBtn.addEventListener('click', () => { showView('dashboard', { mode: 'classic' }); });
+            else console.error("classicVersionBtn not found");
+
+            if (connectDigitalTwinBtn) connectDigitalTwinBtn.addEventListener('click', () => { openDigitalTwinModal(); });
+            else console.error("connectDigitalTwinBtn not found");
+            
+            if (analysisNameModal && cancelAnalysisNameBtn) cancelAnalysisNameBtn.addEventListener('click', () => analysisNameModal.classList.remove('active'));
+            else console.error("analysisNameModal or cancelAnalysisNameBtn not found");
+
+            if (analysisNameModal && submitAnalysisNameBtn) submitAnalysisNameBtn.addEventListener('click', handleSubmitAnalysisName);
+            else console.error("analysisNameModal or submitAnalysisNameBtn not found");
+            
+            if (digitalTwinModal && cancelDigitalTwinBtn) cancelDigitalTwinBtn.addEventListener('click', () => digitalTwinModal.classList.remove('active'));
+            else console.error("digitalTwinModal or cancelDigitalTwinBtn not found");
+
+            if (digitalTwinModal && submitDigitalTwinBtn) submitDigitalTwinBtn.addEventListener('click', handleSubmitDigitalTwin);
+            else console.error("digitalTwinModal or submitDigitalTwinBtn not found");
+        }
+
+        function handleFileSelect(event) {
+            selectedFile = event.target.files[0];
+            if (selectedFile) {
+                if (fileNameDisplay) fileNameDisplay.textContent = `Wybrano: ${selectedFile.name}`;
+                if (analyzeFileBtn) analyzeFileBtn.disabled = false;
+            } else {
+                if (fileNameDisplay) fileNameDisplay.textContent = 'Nie wybrano pliku';
+                if (analyzeFileBtn) analyzeFileBtn.disabled = true;
+                selectedFile = null;
+            }
+        }
+
+        function handleAnalyzeFile() {
+            if (selectedFile) {
+                if (analysisNameInput) analysisNameInput.value = selectedFile.name.replace(/\.[^/.]+$/, ""); 
+                if (analysisNameModal) analysisNameModal.classList.add('active');
+            } else {
+                showCustomMessage('Najpierw wybierz plik CSV.');
+            }
+        }
+
+        function handleSubmitAnalysisName() {
+            if (!analysisNameInput) { console.error("analysisNameInput not found for submit"); return; }
+            const analysisName = analysisNameInput.value.trim();
+            if (!analysisName) {
+                showCustomMessage('Proszę podać nazwę analizy.');
+                return;
+            }
+            if (selectedFile) {
+                const existingAnalysisIndex = userCreatedAnalyses.findIndex(a => a.name === analysisName);
+                if (existingAnalysisIndex > -1) {
+                    userCreatedAnalyses.splice(existingAnalysisIndex, 1); 
+                }
+                userCreatedAnalyses.unshift({ name: analysisName, fileName: selectedFile.name, type: 'real' }); 
+
+                showCustomMessage(`Przygotowywanie analizy "${analysisName}"...`);
+                if (analysisNameModal) analysisNameModal.classList.remove('active');
+                setTimeout(() => { 
+                    showView('dashboard', { 
+                        mode: 'real', 
+                        analysisName: analysisName, 
+                        fileName: selectedFile.name 
+                    });
+                }, 500);
+            }
+        }
+
+        function openDigitalTwinModal() {
+            if (digitalTwinIdInput) digitalTwinIdInput.value = '';
+            if (accessCodeInput) accessCodeInput.value = '';
+            if (digitalTwinModal) digitalTwinModal.classList.add('active');
+            else console.error("digitalTwinModal not found to open");
+        }
+
+        function handleSubmitDigitalTwin() {
+            if (!digitalTwinIdInput || !accessCodeInput) { console.error("Digital twin input fields not found"); return; }
+            const twinId = digitalTwinIdInput.value.trim();
+            const accCode = accessCodeInput.value.trim();
+            if (!twinId || !accCode) {
+                showCustomMessage('Proszę wypełnić oba pola.'); return;
+            }
+            showCustomMessage('Cyfrowy Bliźniak (Digital Twin) nie istnieje lub dane są nieprawidłowe.');
+        }
+
+        // --- Dashboard Logic ---
+        function createInitialBlockDOMStructure(blockTitle = "Analiza Początkowa") {
+            const initialBlockDiv = document.createElement('div');
+            initialBlockDiv.id = 'initial-analysis';
+            initialBlockDiv.classList.add('analysis-block');
+            initialBlockDiv.dataset.blockTitle = blockTitle; 
+            initialBlockDiv.innerHTML = `
+                <div> <h3 class="unified-analysis-heading">Wstępne Spostrzeżenia (Initial Findings)</h3> <div id="initial-findings-content"></div> </div>
+                <div class="mt-4"> <h3 class="unified-analysis-heading">Proces Myślowy (Thought Process)</h3> <div id="thought-process-content"></div> </div>
+                <div class="mt-4"> <h3 class="unified-analysis-heading">Sugestie Dalszych Pytań (Suggestions for Other Questions)</h3> <ul id="initial-suggestions-list" class="space-y-1 question-suggestions-list"></ul> </div>
+            `;
+            return initialBlockDiv;
+        }
+        
+        function updateSidebar(activeAnalysisName = null) {
+            if (!dashboardSidebarNavList) return;
+
+            dashboardSidebarNavList.querySelectorAll('.dynamic-analysis-item').forEach(item => item.remove());
+
+            for (let i = userCreatedAnalyses.length - 1; i >= 0; i--) {
+                const analysis = userCreatedAnalyses[i];
+                const li = document.createElement('li');
+                const a = document.createElement('a');
+                a.href = "#";
+                a.classList.add('sidebar-item', 'block', 'px-4', 'py-2.5', 'text-sm', 'font-medium', 'dynamic-analysis-item');
+                a.dataset.analysisTopic = analysis.name;
+                a.dataset.analysisType = analysis.type; 
+                if (analysis.fileName) a.dataset.fileName = analysis.fileName;
+                a.textContent = analysis.name;
+                li.appendChild(a);
+                dashboardSidebarNavList.prepend(li); 
+            }
+            
+            dashboardSidebarNavList.querySelectorAll('.sidebar-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            let itemToActivate = null;
+            if (activeAnalysisName) {
+                itemToActivate = dashboardSidebarNavList.querySelector(`.sidebar-item[data-analysis-topic="${activeAnalysisName}"]`);
+            }
+            
+            if (itemToActivate) {
+                itemToActivate.classList.add('active');
+            } else {
+                const firstStaticItem = dashboardSidebarNavList.querySelector('.sidebar-item[data-static-item="true"]');
+                if (firstStaticItem) {
+                     firstStaticItem.classList.add('active');
+                } else { 
+                    const firstItem = dashboardSidebarNavList.querySelector('.sidebar-item');
+                    if (firstItem) firstItem.classList.add('active');
+                }
+            }
+            setupDashboardSidebarEventListeners();
+        }
+
+
+        function initializeDashboard(params = { mode: 'demo' }) {
+            analysisBlocksStore = [];
+            currentAnalysisIndex = 0;
+            questionIdCounter = 0;
+            if (chatMessagesContainer) chatMessagesContainer.innerHTML = ''; 
+            
+            let activeTopicName = params.analysisName || params.topicContext || "Analiza Holistyczna";
+            
+            updateSidebar(activeTopicName); 
+
+            if (analysisContentArea) {
+                analysisContentArea.innerHTML = ''; 
+                analysisContentArea.appendChild(createInitialBlockDOMStructure(activeTopicName));
+            } else {
+                console.error("analysisContentArea not found during dashboard initialization!");
+                return;
+            }
+            
+            if (mainAnalysisTitle) mainAnalysisTitle.textContent = activeTopicName;
+
+            if (params.mode === 'real' && params.analysisName) {
+                generateAndDisplayFullAnalysis(`Analiza dla: ${params.analysisName} (Plik: ${params.fileName})`, true, true, activeTopicName);
+                addChatMessageToDashboard(`Rozpoczęto analizę: ${params.analysisName}`, 'ai');
+            } else if (params.topicContext) { 
+                 generateAndDisplayFullAnalysis(params.topicContext, true, false, activeTopicName);
+            }
+            else { // Default demo mode for "Analiza Holistyczna"
+                generateAndDisplayFullAnalysis("Analiza Początkowa", true, false, activeTopicName); 
+                
+                const pregenQuestion1 = "Zidentyfikuj produkty, gdzie koszt przezbrojenia ma nieproporcjonalnie duży wpływ na całkowity koszt jednostkowy w stosunku do wolumenu produkcji.";
+                generateAndDisplayFullAnalysis(pregenQuestion1, false, false, null);
+                addChatMessageToDashboard(pregenQuestion1, 'user'); 
+                addChatMessageToDashboard(`Agent analizuje: "${pregenQuestion1.substring(0,25)}...". Wyniki powyżej.`, 'ai');
+
+                const pregenQuestion2 = "Czy istnieje grupa produktów o podobnej strukturze kosztów, ale znacząco różniąca się rentownością godzinową? Jakie mogą być tego przyczyny?";
+                generateAndDisplayFullAnalysis(pregenQuestion2, false, false, null);
+                addChatMessageToDashboard(pregenQuestion2, 'user'); 
+                addChatMessageToDashboard(`Agent analizuje: "${pregenQuestion2.substring(0,25)}...". Wyniki powyżej.`, 'ai');
+            }
+            
+            currentAnalysisIndex = analysisBlocksStore.findIndex(b => b.id === 'initial-analysis');
+            if(currentAnalysisIndex === -1 && analysisBlocksStore.length > 0) {
+                 currentAnalysisIndex = 0;
+            } else if (currentAnalysisIndex === -1) {
+                 currentAnalysisIndex = 0; 
+            }
+            
+            updateDashboardNavigation();
+            setupDashboardMainEventListeners(); 
+        }
+        
+        function setupDashboardSidebarEventListeners() {
+            if (!dashboardSidebarNavList) return;
+            dashboardSidebarNavList.querySelectorAll('.sidebar-item').forEach(item => {
+                item.removeEventListener('click', handleSidebarItemClick); 
+                item.addEventListener('click', handleSidebarItemClick);
+            });
+        }
+
+        function setupDashboardMainEventListeners() {
+            if (!prevAnalysisBtn || !nextAnalysisBtn || !sendChatButton || !chatInputField || !dashboardAnalyzeNewBtn) {
+                console.error("One or more dashboard main elements are missing. Cannot set up event listeners.");
+                return;
+            }
+
+            prevAnalysisBtn.removeEventListener('click', navigatePrevAnalysis); 
+            nextAnalysisBtn.removeEventListener('click', navigateNextAnalysis);
+            sendChatButton.removeEventListener('click', handleSendChatMessage);
+            chatInputField.removeEventListener('keypress', handleChatInputKeypress);
+            dashboardAnalyzeNewBtn.removeEventListener('click', handleDashboardAnalyzeNew);
+            
+            prevAnalysisBtn.addEventListener('click', navigatePrevAnalysis);
+            nextAnalysisBtn.addEventListener('click', navigateNextAnalysis);
+            sendChatButton.addEventListener('click', handleSendChatMessage);
+            chatInputField.addEventListener('keypress', handleChatInputKeypress);
+            dashboardAnalyzeNewBtn.addEventListener('click', handleDashboardAnalyzeNew);
+        }
+
+        function handleSidebarItemClick(event) {
+            event.preventDefault();
+            const topic = event.currentTarget.dataset.analysisTopic;
+            const type = event.currentTarget.dataset.analysisType;
+            const fileName = event.currentTarget.dataset.fileName;
+
+            if (type === 'real') {
+                 initializeDashboard({ mode: 'real', analysisName: topic, fileName: fileName, topicContext: topic });
+            } else { // Static items
+                 initializeDashboard({ topicContext: topic });
+            }
+        }
+
+        function navigatePrevAnalysis() {
+            if (currentAnalysisIndex > 0) {
+                currentAnalysisIndex--;
+                updateDashboardNavigation();
+            }
+        }
+        function navigateNextAnalysis() {
+            if (currentAnalysisIndex < analysisBlocksStore.length - 1) {
+                currentAnalysisIndex++;
+                updateDashboardNavigation();
+            }
+        }
+        function handleSendChatMessage() {
+            if (!chatInputField || !sendChatButton) return;
+            const userQuestion = chatInputField.value.trim();
+            if (userQuestion) {
+                addChatMessageToDashboard(userQuestion, 'user');
+                chatInputField.value = '';
+                setTimeout(() => {
+                    const shortAiResponse = `Agent analizuje: "${userQuestion.substring(0,25)}...". Wyniki powyżej.`;
+                    addChatMessageToDashboard(shortAiResponse, 'ai');
+                    const currentTopic = (mainAnalysisTitle && mainAnalysisTitle.textContent) ? mainAnalysisTitle.textContent : "Analiza Ogólna";
+                    generateAndDisplayFullAnalysis(userQuestion, false, false, currentTopic); 
+                }, 1000);
+            }
+        }
+        function handleChatInputKeypress(event) {
+            if (event.key === 'Enter' && sendChatButton) {
+                sendChatButton.click();
+            }
+        }
+        function handleDashboardAnalyzeNew() {
+            showView('landing');
+        }
+
+        function updateDashboardNavigation() {
+            if (!prevAnalysisBtn || !nextAnalysisBtn) { console.error("Navigation buttons not found for update."); return; }
+
             if (analysisBlocksStore.length === 0) {
                 prevAnalysisBtn.style.visibility = 'hidden';
                 nextAnalysisBtn.style.visibility = 'hidden';
+                if(mainAnalysisTitle) mainAnalysisTitle.textContent = "Brak Analiz";
                 return;
             }
             
             prevAnalysisBtn.style.visibility = 'visible';
             nextAnalysisBtn.style.visibility = 'visible';
 
-            const currentBlockData = analysisBlocksStore[currentAnalysisIndex];
-            const currentBlockElement = document.getElementById(currentBlockData.id);
-
             document.querySelectorAll('.analysis-block').forEach(block => block.classList.remove('active'));
-            if (currentBlockElement) {
-                currentBlockElement.classList.add('active');
-            }
             
-            prevAnalysisBtn.disabled = currentAnalysisIndex === 0;
-            nextAnalysisBtn.disabled = currentAnalysisIndex === analysisBlocksStore.length - 1;
+            if (analysisBlocksStore[currentAnalysisIndex]) {
+                const currentBlockData = analysisBlocksStore[currentAnalysisIndex];
+                const currentBlockElement = document.getElementById(currentBlockData.id);
+                if (currentBlockElement) {
+                    currentBlockElement.classList.add('active');
+                    if (mainAnalysisTitle) { 
+                        mainAnalysisTitle.textContent = currentBlockData.titleForBlock || "Analiza";
+                    }
+                } else {
+                    console.warn("Current block element not found during navigation update:", currentBlockData.id);
+                }
+                prevAnalysisBtn.disabled = currentAnalysisIndex === 0;
+                nextAnalysisBtn.disabled = currentAnalysisIndex >= analysisBlocksStore.length - 1; 
+            } else {
+                 console.warn("No block data at currentAnalysisIndex during navigation update:", currentAnalysisIndex);
+                 prevAnalysisBtn.style.visibility = 'hidden';
+                 nextAnalysisBtn.style.visibility = 'hidden';
+            }
         }
-        
-        function addChatMessage(text, sender) {
+
+        function addChatMessageToDashboard(text, sender) {
+            if (!chatMessagesContainer) { console.error("Chat messages container not found!"); return; }
             const messageDiv = document.createElement('div');
             messageDiv.classList.add('flex', 'mb-2');
             const messageContentWrapper = document.createElement('div');
             messageContentWrapper.classList.add('p-3', 'rounded-lg', 'max-w-xs', 'lg:max-w-md', 'text-sm');
-
             if (sender === 'user') {
                 messageDiv.classList.add('justify-end');
                 messageContentWrapper.classList.add('bg-gray-600', 'text-white');
-                messageContentWrapper.textContent = text;
-            } else { 
+            } else {
                 messageDiv.classList.add('justify-start');
                 messageContentWrapper.classList.add('bg-blue-600', 'text-white');
-                messageContentWrapper.textContent = text;
             }
+            messageContentWrapper.textContent = text;
             messageDiv.appendChild(messageContentWrapper);
             chatMessagesContainer.appendChild(messageDiv);
             chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
         }
-        
-        // Suggestions are no longer clickable to generate new analyses directly
-        // function makeSuggestionsClickable(listElement) { /* ... */ }
 
-        function generateAndDisplayFullAnalysis(questionText, isInitial = false) {
-            questionIdCounter++;
-            const analysisBlockId = isInitial ? 'initial-analysis' : `analysis-q-${questionIdCounter}`;
+        function generateAndDisplayFullAnalysis(questionText, isInitial = false, isRealData = false, topicContext = null) {
+            if (!analysisContentArea) {
+                console.error("analysisContentArea is not available to generate analysis.");
+                return;
+            }
+            if(!isInitial) questionIdCounter++; 
             
-            // Ensure the ID is unique if it's not the initial block
+            let analysisBlockId = isInitial ? 'initial-analysis' : `analysis-q-${questionIdCounter}`; 
+            
             if (!isInitial && document.getElementById(analysisBlockId)) {
-                // This case should ideally not happen if questionIdCounter is managed well
-                console.warn("Duplicate ID generated:", analysisBlockId);
-                return; // Or handle differently
+                console.warn("Duplicate ID for follow-up:", analysisBlockId, ". Incrementing counter and regenerating ID.");
+                questionIdCounter++; 
+                analysisBlockId = `analysis-q-${questionIdCounter}`; 
             }
 
             const displayQuestionTitleInBlock = questionText.length > 65 ? questionText.substring(0, 62) + "..." : questionText;
-            const blockTitleForNavigation = isInitial ? "Analiza Początkowa" : (questionText.length > 25 ? `Pyt: "${questionText.substring(0, 22)}..."` : `Pyt: "${questionText}"`);
-
-            let findingsHeading = isInitial ? "Wstępne Spostrzeżenia (Initial Findings)" : "Wynik";
-            let findingsContent, thoughtProcessContent, newSuggestionsContent;
-
-            if (isInitial) {
-                findingsContent = `
-                    <p>Agent zidentyfikował, że produkty o relatywnie wysokim koszcie materiału nie zawsze korelują z najdłuższym czasem realizacji, co może wskazywać na zróżnicowaną efektywność łańcucha dostaw dla poszczególnych komponentów.</p>
-                    <p>Dodatkowo, pewna grupa produktów charakteryzująca się niskim 'Wartość Dodana VA %' jednocześnie generuje ponadprzeciętny 'Zysk na godzinę', co może sugerować unikalną strategię cenową lub specyficzną pozycję rynkową tych wyrobów.</p>`;
-                thoughtProcessContent = `
-                    <p>Aby sformułować te spostrzeżenia, Agent wykonał następujące kroki:</p>
-                    <ul class="mt-2 space-y-1">
-                        <li>Agent obliczył złożone wskaźniki, takie jak stosunek kosztu materiału do całkowitego czasu cyklu, dla każdego produktu.</li>
-                        <li>Agent przeprowadził analizę kwadrantową, mapując produkty na osiach 'Wartość Dodana VA %' vs 'Zysk na godzinę', aby zidentyfikować nietypowe grupy.</li>
-                        <li>Agent porównał profile kosztowe produktów o podobnym czasie realizacji, ale znacząco różniących się udziałem kosztów materiałowych.</li>
-                    </ul>`;
-                newSuggestionsContent = [
-                    "Które kategorie produktów wykazują największą dysproporcję między udziałem kosztów materiałowych a całkowitym czasem realizacji i jakie mogą być tego przyczyny?",
-                    "Czy istnieje segment produktów, gdzie wysoka wartość 'NVA %' jest kompensowana przez wyjątkowo wysoki 'Zysk na godzinę', i co charakteryzuje te produkty?",
-                    "Jakie czynniki, poza bezpośrednimi kosztami, mogą wpływać na rentowność produktów o niskiej wartości dodanej (VA%)?"
-                ];
-            } else {
-                findingsContent = `<p>W odpowiedzi na pytanie "${displayQuestionTitleInBlock}", Agent ustalił, że kluczowym elementem jest X. Na przykład, produkty Y wykazują tendencję Z.</p>`;
-                thoughtProcessContent = `<p>Agent zastosował metodę A do analizy danych dotyczących "${displayQuestionTitleInBlock}". Porównano wskaźniki B i C.</p>`;
-                newSuggestionsContent = [
-                    `Jak zmiana parametru D wpłynie na "${displayQuestionTitleInBlock.substring(0,15)}..."?`,
-                    `Czy można zidentyfikować inne czynniki wpływające na "${displayQuestionTitleInBlock.substring(0,15).toLowerCase()}..."?`
-                ];
-            }
             
-            let newAnalysisBlock;
+            const blockTitleForNavigation = isInitial 
+                ? (topicContext || questionText) 
+                : (questionText.length > 25 ? `Pyt: "${questionText.substring(0, 22)}..."` : `Pyt: "${questionText}"`);
+            
+            let findingsHeading, findingsContent, thoughtProcessContent, newSuggestionsContent;
+            const currentTopicTitle = topicContext || "Analiza Ogólna"; 
+
             if (isInitial) {
-                newAnalysisBlock = document.getElementById('initial-analysis'); // Use existing initial block
-                // Populate its content if needed, though it's already in HTML for the initial state
-                newAnalysisBlock.querySelector('#initial-findings-content').innerHTML = findingsContent;
-                newAnalysisBlock.querySelector('#thought-process-content').innerHTML = thoughtProcessContent;
-                const suggestionsList = newAnalysisBlock.querySelector('#initial-suggestions-list');
-                suggestionsList.innerHTML = newSuggestionsContent.map(s => `<li>${s}</li>`).join('');
-
-            } else {
-                newAnalysisBlock = document.createElement('div');
-                newAnalysisBlock.id = analysisBlockId;
-                newAnalysisBlock.classList.add('analysis-block');
-                newAnalysisBlock.innerHTML = `
-                    <h2 class="analysis-question-title">Pytanie: ${displayQuestionTitleInBlock}</h2>
-                    <div>
-                        <h3 class="unified-analysis-heading">${findingsHeading}</h3>
-                        <p>${findingsContent}</p>
-                    </div>
-                    <div class="mt-4">
-                        <h3 class="unified-analysis-heading">Proces Myślowy (Thought Process)</h3>
-                        <p>${thoughtProcessContent}</p>
-                    </div>
-                    <div class="mt-4">
-                        <h3 class="unified-analysis-heading">Sugestie Dalszych Pytań (Suggestions for Other Questions)</h3>
-                        <ul class="space-y-1 question-suggestions-list">
-                            ${newSuggestionsContent.map(s => `<li>${s}</li>`).join('')}
-                        </ul>
-                    </div>
-                `;
-                analysisContentArea.appendChild(newAnalysisBlock);
-            }
-            newAnalysisBlock.dataset.blockTitle = blockTitleForNavigation; 
-
-            if (!isInitial) {
-                 analysisBlocksStore.push({id: analysisBlockId, titleForBlock: blockTitleForNavigation, question: questionText});
-                 currentAnalysisIndex = analysisBlocksStore.length - 1; 
-            } else {
-                // Ensure the initial block is correctly in the store if it wasn't added before
-                if (!analysisBlocksStore.find(b => b.id === 'initial-analysis')) {
-                    analysisBlocksStore.unshift({id: 'initial-analysis', titleForBlock: "Analiza Początkowa", question: "Analiza Początkowa"});
+                findingsHeading = isRealData ? `Wyniki dla "${currentTopicTitle}"` : `Wstępne Spostrzeżenia (${currentTopicTitle})`;
+                if (isRealData) {
+                    findingsContent = `<p>To jest symulowana analiza dla <strong>${currentTopicTitle}</strong>. W rzeczywistej aplikacji tutaj pojawiłyby się wyniki parsowania i analizy pliku CSV.</p>`;
+                    thoughtProcessContent = `<p>1. Wczytano plik CSV.<br>2. Przeprowadzono wstępne przetwarzanie danych.<br>3. Wygenerowano kluczowe metryki (symulacja).</p>`;
+                    newSuggestionsContent = [
+                        `Jakie są trendy w danych dla ${ (currentTopicTitle).substring(0,20)}...?`,
+                        `Czy można zidentyfikować anomalie w ${(currentTopicTitle).substring(0,20)}...?`
+                    ];
+                } else if (topicContext && topicContext !== "Analiza Holistyczna" && topicContext !== "Analiza Początkowa" ) { 
+                     findingsContent = `<p>Dane dla tematu '<strong>${topicContext}</strong>' są obecnie symulowane.</p><p>Możesz zadać pytania dotyczące tego tematu w czacie poniżej.</p>`;
+                    thoughtProcessContent = `<p>Analiza dla '<strong>${topicContext}</strong>' jest w toku. Agent jest gotowy na Twoje pytania.</p>`;
+                    newSuggestionsContent = [
+                        `Jakie są kluczowe wskaźniki dla ${topicContext}?`,
+                        `Poproś o szczegółową analizę X w kontekście ${topicContext}.`
+                    ];
                 }
-                currentAnalysisIndex = analysisBlocksStore.findIndex(b => b.id === 'initial-analysis');
+                 else { 
+                    findingsContent = `<p>Agent zidentyfikował, że produkty o relatywnie wysokim koszcie materiału nie zawsze korelują z najdłuższym czasem realizacji...</p><p>Dodatkowo, pewna grupa produktów charakteryzująca się niskim 'Wartość Dodana VA %'...</p>`;
+                    thoughtProcessContent = `<p>Aby sformułować te spostrzeżenia, Agent wykonał następujące kroki:</p><ul class="mt-2 space-y-1"><li>Agent obliczył złożone wskaźniki...</li><li>Agent przeprowadził analizę kwadrantową...</li><li>Agent porównał profile kosztowe...</li></ul>`;
+                    newSuggestionsContent = ["Które kategorie produktów wykazują największą dysproporcję...?", "Czy istnieje segment produktów, gdzie wysoka wartość 'NVA %'...", "Jakie czynniki, poza bezpośrednimi kosztami..."];
+                }
+            } else { 
+                findingsHeading = "Wynik";
+                findingsContent = `<p>W odpowiedzi na pytanie "${displayQuestionTitleInBlock}" (w kontekście: ${currentTopicTitle}), Agent ustalił, że kluczowym elementem jest X. Na przykład, produkty Y wykazują tendencję Z.</p>`;
+                thoughtProcessContent = `<p>Agent zastosował metodę A do analizy danych dotyczących "${displayQuestionTitleInBlock}". Porównano wskaźniki B i C.</p>`;
+                newSuggestionsContent = [`Jak zmiana parametru D wpłynie na "${displayQuestionTitleInBlock.substring(0,15)}..."?`, `Czy można zidentyfikować inne czynniki wpływające na "${displayQuestionTitleInBlock.substring(0,15).toLowerCase()}..."?`];
             }
-            updateNavigation();
-        }
-        
-        // Initialize with the first block
-        const initialBlockElement = document.getElementById('initial-analysis');
-        if (initialBlockElement) {
-            // Store initial block info
-            analysisBlocksStore.push({
-                id: initialBlockElement.id, 
-                titleForBlock: initialBlockElement.dataset.blockTitle, 
-                question: "Analiza Początkowa" 
-            });
-            // Suggestions are no longer clickable to generate new analysis
-            // makeSuggestionsClickable(initialBlockElement.querySelector('#initial-suggestions-list'));
             
-            // --- Pre-generate some example follow-up analyses ---
-            const pregenQuestion1 = "Zidentyfikuj produkty, gdzie koszt przezbrojenia ma nieproporcjonalnie duży wpływ na całkowity koszt jednostkowy w stosunku do wolumenu produkcji.";
-            generateAndDisplayFullAnalysis(pregenQuestion1, false);
-            addChatMessage(pregenQuestion1, 'user');
-            addChatMessage(`Agent analizuje: "${pregenQuestion1.substring(0,25)}...". Wyniki powyżej.`, 'ai');
+            let currentBlockElement;
+            if (isInitial) { 
+                currentBlockElement = document.getElementById('initial-analysis');
+                if (!currentBlockElement) { 
+                    console.error("'initial-analysis' div not found! Cannot populate.");
+                    return;
+                }
+                 currentBlockElement.innerHTML = ` 
+                    <div><h3 class="unified-analysis-heading">${findingsHeading}</h3><div id="initial-findings-content">${findingsContent}</div></div>
+                    <div class="mt-4"><h3 class="unified-analysis-heading">Proces Myślowy (Thought Process)</h3><div id="thought-process-content">${thoughtProcessContent}</div></div>
+                    <div class="mt-4"><h3 class="unified-analysis-heading">Sugestie Dalszych Pytań (Suggestions for Other Questions)</h3><ul id="initial-suggestions-list" class="space-y-1 question-suggestions-list">${newSuggestionsContent.map(s => `<li>${s}</li>`).join('')}</ul></div>
+                `;
+                currentBlockElement.dataset.blockTitle = blockTitleForNavigation; 
 
-            const pregenQuestion2 = "Czy istnieje grupa produktów o podobnej strukturze kosztów, ale znacząco różniąca się rentownością godzinową? Jakie mogą być tego przyczyny?";
-            generateAndDisplayFullAnalysis(pregenQuestion2, false);
-            addChatMessage(pregenQuestion2, 'user');
-            addChatMessage(`Agent analizuje: "${pregenQuestion2.substring(0,25)}...". Wyniki powyżej.`, 'ai');
+            } else { 
+                currentBlockElement = document.createElement('div');
+                currentBlockElement.id = analysisBlockId; 
+                currentBlockElement.classList.add('analysis-block');
+                currentBlockElement.dataset.blockTitle = blockTitleForNavigation;
+                currentBlockElement.innerHTML = `
+                    <h2 class="analysis-question-title">Pytanie: ${displayQuestionTitleInBlock}</h2>
+                    <div><h3 class="unified-analysis-heading">${findingsHeading}</h3><div>${findingsContent}</div></div>
+                    <div class="mt-4"><h3 class="unified-analysis-heading">Proces Myślowy (Thought Process)</h3><div>${thoughtProcessContent}</div></div>
+                    <div class="mt-4"><h3 class="unified-analysis-heading">Sugestie Dalszych Pytań (Suggestions for Other Questions)</h3><ul class="space-y-1 question-suggestions-list">${newSuggestionsContent.map(s => `<li>${s}</li>`).join('')}</ul></div>
+                `;
+                if (analysisContentArea) analysisContentArea.appendChild(currentBlockElement);
+                else console.error("analysisContentArea not found to append new block");
+            }
             
-            // Set current index back to the initial analysis after pre-generating
-            currentAnalysisIndex = 0; 
-            updateNavigation();
+            const existingStoreIndex = analysisBlocksStore.findIndex(b => b.id === analysisBlockId);
+            const blockData = {id: analysisBlockId, titleForBlock: blockTitleForNavigation, question: questionText};
+            if (existingStoreIndex > -1) { 
+                analysisBlocksStore[existingStoreIndex] = blockData;
+            } else {
+                analysisBlocksStore.push(blockData);
+            }
+            
+            if (isInitial) {
+                 currentAnalysisIndex = analysisBlocksStore.findIndex(b => b.id === 'initial-analysis');
+            } else {
+                 currentAnalysisIndex = analysisBlocksStore.length - 1;
+            }
+            if(currentAnalysisIndex === -1 && analysisBlocksStore.length > 0) currentAnalysisIndex = 0;
 
-        } else { 
-             updateNavigation(); 
+            updateDashboardNavigation();
         }
 
-
-        prevAnalysisBtn.addEventListener('click', () => {
-            if (currentAnalysisIndex > 0) {
-                currentAnalysisIndex--;
-                updateNavigation();
+        window.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                if (analysisNameModal && analysisNameModal.classList.contains('active')) analysisNameModal.classList.remove('active');
+                if (digitalTwinModal && digitalTwinModal.classList.contains('active')) digitalTwinModal.classList.remove('active');
+            }
+        });
+        [analysisNameModal, digitalTwinModal].forEach(modal => {
+            if (modal) { 
+                modal.addEventListener('click', (event) => {
+                    if (event.target === modal) modal.classList.remove('active');
+                });
             }
         });
 
-        nextAnalysisBtn.addEventListener('click', () => {
-            if (currentAnalysisIndex < analysisBlocksStore.length - 1) {
-                currentAnalysisIndex++;
-                updateNavigation();
+        function initializeApp() {
+            if (!bodyElement || !landingPageView || !dashboardView || !dashboardViewWrapper ||
+                !selectCsvBtn || !csvFileInput || !analyzeFileBtn || !fileNameDisplay || !runDemoBtn || 
+                !connectDigitalTwinBtn || !classicVersionBtn || !analysisNameModal || !analysisNameInput ||
+                !cancelAnalysisNameBtn || !submitAnalysisNameBtn || !digitalTwinModal || !digitalTwinIdInput ||
+                !accessCodeInput || !cancelDigitalTwinBtn || !submitDigitalTwinBtn || !customMessageBox ||
+                !dashboardAnalyzeNewBtn || !sendChatButton || !chatInputField || !chatMessagesContainer ||
+                !analysisContentArea || !prevAnalysisBtn || !nextAnalysisBtn || !mainAnalysisTitle || !dashboardSidebarNavList) {
+                console.error("CRITICAL: One or more essential DOM elements are missing during initializeApp. Application cannot initialize correctly. Check HTML structure and element IDs.");
+                if (document.body) { 
+                    document.body.innerHTML = '<div style="color: red; font-size: 20px; text-align: center; padding: 50px;">Wystąpił krytyczny błąd podczas ładowania aplikacji. Sprawdź konsolę, aby uzyskać więcej informacji. (Błąd inicjalizacji DOM)</div>';
+                }
+                return;
             }
+            initializeLandingPage();
+            showView('landing'); 
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeApp();
         });
 
-        sendButton.addEventListener('click', () => {
-            const userQuestion = inputField.value.trim();
-            if (userQuestion) {
-                addChatMessage(userQuestion, 'user');
-                inputField.value = '';
-
-                setTimeout(() => {
-                    const shortAiResponse = `Agent analizuje: "${userQuestion.substring(0,25)}...". Wyniki powyżej.`;
-                    addChatMessage(shortAiResponse, 'ai');
-                    generateAndDisplayFullAnalysis(userQuestion, false);
-                }, 1000);
-            }
-        });
-
-        inputField.addEventListener('keypress', (event) => {
-            if (event.key === 'Enter') {
-                sendButton.click();
-            }
-        });
     </script>
-
 </body>
 </html>
