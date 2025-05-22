@@ -163,7 +163,7 @@
             <div id="file-name-display" class="file-name-display">Nie wybrano pliku</div>
             <button id="analyze-file-btn" class="btn btn-green" disabled>Analizuj Plik</button>
             <div class="or-separator">LUB</div>
-            <button id="run-demo-btn" class="btn btn-purple mb-3">Uruchom Test z Danymi Demo</button>
+            <button id="browse-my-analyses-btn" class="btn btn-purple mb-3">Przeglądaj Moje Analizy</button> 
             <button id="connect-digital-twin-btn" class="btn btn-magenta">Połącz z Witness Digital Twin</button>
         </div>
         <button id="classic-version-btn" class="btn landing-footer-link">Analizator Danych CSV - Wersja Klasyczna</button>
@@ -251,7 +251,7 @@
         const csvFileInput = document.getElementById('csv-file-input');
         const analyzeFileBtn = document.getElementById('analyze-file-btn');
         const fileNameDisplay = document.getElementById('file-name-display');
-        const runDemoBtn = document.getElementById('run-demo-btn');
+        const browseMyAnalysesBtn = document.getElementById('browse-my-analyses-btn'); // Renamed from runDemoBtn
         const connectDigitalTwinBtn = document.getElementById('connect-digital-twin-btn');
         const classicVersionBtn = document.getElementById('classic-version-btn');
         const analysisNameModal = document.getElementById('analysis-name-modal');
@@ -284,6 +284,7 @@
         let currentAnalysisIndex = 0;
         let questionIdCounter = 0; 
         let userCreatedAnalyses = []; 
+        let currentDashboardContextTitle = "Analiza Holistyczna"; 
 
         // --- Utility Functions ---
         function showCustomMessage(message, duration = 3000) {
@@ -315,7 +316,13 @@
                 
                 landingPageView.classList.add('view-hidden');
                 dashboardView.classList.remove('view-hidden');
-                document.title = params.analysisName ? `Dashboard - ${params.analysisName}` : (params.topicContext ? `Dashboard - ${params.topicContext}` : "Dashboard - Podgląd Analizy");
+                
+                if (params.mode === 'my_analyses' && userCreatedAnalyses.length === 0) {
+                    currentDashboardContextTitle = "Moje Analizy";
+                } else {
+                    currentDashboardContextTitle = params.analysisName || params.topicContext || "Analiza Holistyczna";
+                }
+                document.title = `Dashboard - ${currentDashboardContextTitle}`;
                 initializeDashboard(params); 
             }
         }
@@ -331,8 +338,8 @@
             if (analyzeFileBtn) analyzeFileBtn.addEventListener('click', handleAnalyzeFile);
             else console.error("analyzeFileBtn not found");
 
-            if (runDemoBtn) runDemoBtn.addEventListener('click', () => { showView('dashboard', { mode: 'demo' }); });
-            else console.error("runDemoBtn not found");
+            if (browseMyAnalysesBtn) browseMyAnalysesBtn.addEventListener('click', () => { showView('dashboard', { mode: 'my_analyses' }); }); // Updated event listener
+            else console.error("browseMyAnalysesBtn not found");
             
             if (classicVersionBtn) classicVersionBtn.addEventListener('click', () => { showView('dashboard', { mode: 'classic' }); });
             else console.error("classicVersionBtn not found");
@@ -478,38 +485,74 @@
             analysisBlocksStore = [];
             currentAnalysisIndex = 0;
             questionIdCounter = 0;
+            const chatContainer = document.querySelector('.symulowany-czat-container'); // Get chat container
+
             if (chatMessagesContainer) chatMessagesContainer.innerHTML = ''; 
+            if (analysisContentArea) analysisContentArea.innerHTML = ''; 
             
-            let activeTopicName = params.analysisName || params.topicContext || "Analiza Holistyczna";
+            let analysisToLoadName = params.analysisName;
+            let analysisToLoadFileName = params.fileName;
+            let analysisToLoadMode = params.mode;
+            let analysisToLoadTopicContext = params.topicContext;
+
+            if (params.mode === 'my_analyses') {
+                if (userCreatedAnalyses.length > 0) {
+                    const latestAnalysis = userCreatedAnalyses[0];
+                    analysisToLoadName = latestAnalysis.name;
+                    analysisToLoadFileName = latestAnalysis.fileName;
+                    analysisToLoadMode = 'real'; // Treat as loading this specific 'real' analysis
+                    currentDashboardContextTitle = analysisToLoadName; 
+                } else {
+                    currentDashboardContextTitle = "Moje Analizy"; 
+                    if (mainAnalysisTitle) mainAnalysisTitle.textContent = currentDashboardContextTitle;
+                    if (analysisContentArea) analysisContentArea.innerHTML = '<p class="text-center p-8 text-gray-400">Nie utworzyłeś jeszcze żadnych analiz. Przejdź do <a href="#" id="back-to-landing-from-empty" class="text-blue-400 hover:underline">strony głównej</a>, aby zaimportować plik CSV.</p>';
+                    
+                    const backToLandingLink = document.getElementById('back-to-landing-from-empty');
+                    if (backToLandingLink) {
+                        backToLandingLink.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            showView('landing');
+                        });
+                    }
+                    updateSidebar(null); 
+                    if(prevAnalysisBtn) prevAnalysisBtn.style.visibility = 'hidden';
+                    if(nextAnalysisBtn) nextAnalysisBtn.style.visibility = 'hidden';
+                    if(chatContainer) chatContainer.style.display = 'none'; // Hide chat
+                    setupDashboardMainEventListeners(); // Still setup main listeners like "Analyze New File"
+                    return; 
+                }
+            } else {
+                 currentDashboardContextTitle = analysisToLoadName || analysisToLoadTopicContext || "Analiza Holistyczna";
+            }
             
-            updateSidebar(activeTopicName); 
+            if(chatContainer) chatContainer.style.display = 'block'; // Ensure chat is visible
+            updateSidebar(currentDashboardContextTitle); 
 
             if (analysisContentArea) {
-                analysisContentArea.innerHTML = ''; 
-                analysisContentArea.appendChild(createInitialBlockDOMStructure(activeTopicName));
+                analysisContentArea.appendChild(createInitialBlockDOMStructure(currentDashboardContextTitle));
             } else {
                 console.error("analysisContentArea not found during dashboard initialization!");
                 return;
             }
             
-            if (mainAnalysisTitle) mainAnalysisTitle.textContent = activeTopicName;
+            if (mainAnalysisTitle) mainAnalysisTitle.textContent = currentDashboardContextTitle;
 
-            if (params.mode === 'real' && params.analysisName) {
-                generateAndDisplayFullAnalysis(`Analiza dla: ${params.analysisName} (Plik: ${params.fileName})`, true, true, activeTopicName);
-                addChatMessageToDashboard(`Rozpoczęto analizę: ${params.analysisName}`, 'ai');
-            } else if (params.topicContext) { 
-                 generateAndDisplayFullAnalysis(params.topicContext, true, false, activeTopicName);
+            if (analysisToLoadMode === 'real' && analysisToLoadName) {
+                generateAndDisplayFullAnalysis(`Analiza dla: ${analysisToLoadName} (Plik: ${analysisToLoadFileName})`, true, true, currentDashboardContextTitle);
+                addChatMessageToDashboard(`Załadowano analizę: ${analysisToLoadName}`, 'ai');
+            } else if (analysisToLoadTopicContext && analysisToLoadMode !== 'my_analyses') { // Check mode to avoid re-processing if my_analyses fell to demo
+                 generateAndDisplayFullAnalysis(analysisToLoadTopicContext, true, false, currentDashboardContextTitle);
             }
-            else { // Default demo mode for "Analiza Holistyczna"
-                generateAndDisplayFullAnalysis("Analiza Początkowa", true, false, activeTopicName); 
+            else { // Default demo mode (covers 'demo' and initial state of 'my_analyses' if it were to load demo)
+                generateAndDisplayFullAnalysis("Analiza Początkowa", true, false, currentDashboardContextTitle); 
                 
                 const pregenQuestion1 = "Zidentyfikuj produkty, gdzie koszt przezbrojenia ma nieproporcjonalnie duży wpływ na całkowity koszt jednostkowy w stosunku do wolumenu produkcji.";
-                generateAndDisplayFullAnalysis(pregenQuestion1, false, false, null);
+                generateAndDisplayFullAnalysis(pregenQuestion1, false, false, null); 
                 addChatMessageToDashboard(pregenQuestion1, 'user'); 
                 addChatMessageToDashboard(`Agent analizuje: "${pregenQuestion1.substring(0,25)}...". Wyniki powyżej.`, 'ai');
 
                 const pregenQuestion2 = "Czy istnieje grupa produktów o podobnej strukturze kosztów, ale znacząco różniąca się rentownością godzinową? Jakie mogą być tego przyczyny?";
-                generateAndDisplayFullAnalysis(pregenQuestion2, false, false, null);
+                generateAndDisplayFullAnalysis(pregenQuestion2, false, false, null); 
                 addChatMessageToDashboard(pregenQuestion2, 'user'); 
                 addChatMessageToDashboard(`Agent analizuje: "${pregenQuestion2.substring(0,25)}...". Wyniki powyżej.`, 'ai');
             }
@@ -521,7 +564,7 @@
                  currentAnalysisIndex = 0; 
             }
             
-            updateDashboardNavigation();
+            updateDashboardNavigation(); 
             setupDashboardMainEventListeners(); 
         }
         
@@ -586,8 +629,7 @@
                 setTimeout(() => {
                     const shortAiResponse = `Agent analizuje: "${userQuestion.substring(0,25)}...". Wyniki powyżej.`;
                     addChatMessageToDashboard(shortAiResponse, 'ai');
-                    const currentTopic = (mainAnalysisTitle && mainAnalysisTitle.textContent) ? mainAnalysisTitle.textContent : "Analiza Ogólna";
-                    generateAndDisplayFullAnalysis(userQuestion, false, false, currentTopic); 
+                    generateAndDisplayFullAnalysis(userQuestion, false, false, currentDashboardContextTitle); 
                 }, 1000);
             }
         }
@@ -603,10 +645,13 @@
         function updateDashboardNavigation() {
             if (!prevAnalysisBtn || !nextAnalysisBtn) { console.error("Navigation buttons not found for update."); return; }
 
+            if (mainAnalysisTitle) {
+                mainAnalysisTitle.textContent = currentDashboardContextTitle || "Analiza";
+            }
+
             if (analysisBlocksStore.length === 0) {
                 prevAnalysisBtn.style.visibility = 'hidden';
                 nextAnalysisBtn.style.visibility = 'hidden';
-                if(mainAnalysisTitle) mainAnalysisTitle.textContent = "Brak Analiz";
                 return;
             }
             
@@ -620,9 +665,6 @@
                 const currentBlockElement = document.getElementById(currentBlockData.id);
                 if (currentBlockElement) {
                     currentBlockElement.classList.add('active');
-                    if (mainAnalysisTitle) { 
-                        mainAnalysisTitle.textContent = currentBlockData.titleForBlock || "Analiza";
-                    }
                 } else {
                     console.warn("Current block element not found during navigation update:", currentBlockData.id);
                 }
@@ -671,28 +713,31 @@
 
             const displayQuestionTitleInBlock = questionText.length > 65 ? questionText.substring(0, 62) + "..." : questionText;
             
-            const blockTitleForNavigation = isInitial 
-                ? (topicContext || questionText) 
-                : (questionText.length > 25 ? `Pyt: "${questionText.substring(0, 22)}..."` : `Pyt: "${questionText}"`);
+            let blockTitleForNavigation;
+            if (isInitial) {
+                blockTitleForNavigation = topicContext || questionText; 
+            } else {
+                blockTitleForNavigation = `Odpowiedź na pytanie ${questionIdCounter}`; 
+            }
             
             let findingsHeading, findingsContent, thoughtProcessContent, newSuggestionsContent;
-            const currentTopicTitle = topicContext || "Analiza Ogólna"; 
+            const effectiveTopicContext = topicContext || currentDashboardContextTitle || "Analiza Ogólna"; 
 
             if (isInitial) {
-                findingsHeading = isRealData ? `Wyniki dla "${currentTopicTitle}"` : `Wstępne Spostrzeżenia (${currentTopicTitle})`;
+                findingsHeading = isRealData ? `Wyniki dla "${effectiveTopicContext}"` : `Wstępne Spostrzeżenia (${effectiveTopicContext})`;
                 if (isRealData) {
-                    findingsContent = `<p>To jest symulowana analiza dla <strong>${currentTopicTitle}</strong>. W rzeczywistej aplikacji tutaj pojawiłyby się wyniki parsowania i analizy pliku CSV.</p>`;
+                    findingsContent = `<p>To jest symulowana analiza dla <strong>${effectiveTopicContext}</strong>. W rzeczywistej aplikacji tutaj pojawiłyby się wyniki parsowania i analizy pliku CSV.</p>`;
                     thoughtProcessContent = `<p>1. Wczytano plik CSV.<br>2. Przeprowadzono wstępne przetwarzanie danych.<br>3. Wygenerowano kluczowe metryki (symulacja).</p>`;
                     newSuggestionsContent = [
-                        `Jakie są trendy w danych dla ${ (currentTopicTitle).substring(0,20)}...?`,
-                        `Czy można zidentyfikować anomalie w ${(currentTopicTitle).substring(0,20)}...?`
+                        `Jakie są trendy w danych dla ${ (effectiveTopicContext).substring(0,20)}...?`,
+                        `Czy można zidentyfikować anomalie w ${(effectiveTopicContext).substring(0,20)}...?`
                     ];
-                } else if (topicContext && topicContext !== "Analiza Holistyczna" && topicContext !== "Analiza Początkowa" ) { 
-                     findingsContent = `<p>Dane dla tematu '<strong>${topicContext}</strong>' są obecnie symulowane.</p><p>Możesz zadać pytania dotyczące tego tematu w czacie poniżej.</p>`;
-                    thoughtProcessContent = `<p>Analiza dla '<strong>${topicContext}</strong>' jest w toku. Agent jest gotowy na Twoje pytania.</p>`;
+                } else if (effectiveTopicContext && effectiveTopicContext !== "Analiza Holistyczna" && effectiveTopicContext !== "Analiza Początkowa" ) { 
+                     findingsContent = `<p>Dane dla tematu '<strong>${effectiveTopicContext}</strong>' są obecnie symulowane.</p><p>Możesz zadać pytania dotyczące tego tematu w czacie poniżej.</p>`;
+                    thoughtProcessContent = `<p>Analiza dla '<strong>${effectiveTopicContext}</strong>' jest w toku. Agent jest gotowy na Twoje pytania.</p>`;
                     newSuggestionsContent = [
-                        `Jakie są kluczowe wskaźniki dla ${topicContext}?`,
-                        `Poproś o szczegółową analizę X w kontekście ${topicContext}.`
+                        `Jakie są kluczowe wskaźniki dla ${effectiveTopicContext}?`,
+                        `Poproś o szczegółową analizę X w kontekście ${effectiveTopicContext}.`
                     ];
                 }
                  else { 
@@ -702,7 +747,7 @@
                 }
             } else { 
                 findingsHeading = "Wynik";
-                findingsContent = `<p>W odpowiedzi na pytanie "${displayQuestionTitleInBlock}" (w kontekście: ${currentTopicTitle}), Agent ustalił, że kluczowym elementem jest X. Na przykład, produkty Y wykazują tendencję Z.</p>`;
+                findingsContent = `<p>W odpowiedzi na pytanie "${displayQuestionTitleInBlock}" (w kontekście: ${effectiveTopicContext}), Agent ustalił, że kluczowym elementem jest X. Na przykład, produkty Y wykazują tendencję Z.</p>`;
                 thoughtProcessContent = `<p>Agent zastosował metodę A do analizy danych dotyczących "${displayQuestionTitleInBlock}". Porównano wskaźniki B i C.</p>`;
                 newSuggestionsContent = [`Jak zmiana parametru D wpłynie na "${displayQuestionTitleInBlock.substring(0,15)}..."?`, `Czy można zidentyfikować inne czynniki wpływające na "${displayQuestionTitleInBlock.substring(0,15).toLowerCase()}..."?`];
             }
@@ -770,7 +815,7 @@
 
         function initializeApp() {
             if (!bodyElement || !landingPageView || !dashboardView || !dashboardViewWrapper ||
-                !selectCsvBtn || !csvFileInput || !analyzeFileBtn || !fileNameDisplay || !runDemoBtn || 
+                !selectCsvBtn || !csvFileInput || !analyzeFileBtn || !fileNameDisplay || !browseMyAnalysesBtn || 
                 !connectDigitalTwinBtn || !classicVersionBtn || !analysisNameModal || !analysisNameInput ||
                 !cancelAnalysisNameBtn || !submitAnalysisNameBtn || !digitalTwinModal || !digitalTwinIdInput ||
                 !accessCodeInput || !cancelDigitalTwinBtn || !submitDigitalTwinBtn || !customMessageBox ||
