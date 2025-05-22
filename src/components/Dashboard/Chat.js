@@ -23,7 +23,7 @@ const Chat = ({ onSendMessage, messages }) => {
             <div className="chat-input-container p-4 md:p-6">
                 <div id="chat-messages-react" className="space-y-3 mb-4 h-64 overflow-y-auto p-3 bg-gray-800 rounded-md border border-gray-700">
                     {messages.map((msg, index) => (
-                        <div key={index} className={`flex mb-2 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div key={`${msg.sender}-${index}-${msg.text.substring(0,5)}`} className={`flex mb-2 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                             <div className={`p-3 rounded-lg max-w-xs lg:max-w-md text-sm ${msg.sender === 'user' ? 'bg-gray-600 text-white' : 'bg-blue-600 text-white'}`}>
                                 {msg.text}
                             </div>

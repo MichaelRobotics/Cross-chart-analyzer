@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useAnalysisContext } from '../../contexts/AnalysisContext';
 import AnalysisNameModal from '../Modals/AnalysisNameModal';
 import DigitalTwinModal from '../Modals/DigitalTwinModal';
-import CustomMessage from '../UI/CustomMessage'; // Assuming CustomMessage is in UI folder
+import CustomMessage from '../UI/CustomMessage';
 
 const LandingPage = ({ onNavigateToDashboard }) => {
     const [selectedFile, setSelectedFile] = useState(null);
@@ -32,9 +32,8 @@ const LandingPage = ({ onNavigateToDashboard }) => {
             setFileNameDisplay('Nie wybrano pliku');
             setInitialModalAnalysisName('');
         }
-        // Reset file input to allow selecting the same file again if needed
         if (csvFileInputRef.current) {
-            csvFileInputRef.current.value = "";
+            csvFileInputRef.current.value = ""; // Allows re-selecting the same file
         }
     };
 
@@ -50,15 +49,15 @@ const LandingPage = ({ onNavigateToDashboard }) => {
         if (selectedFile) {
             addUserAnalysis({ name: analysisName, fileName: selectedFile.name, type: 'real' });
             showAppMessage(`Przygotowywanie analizy "${analysisName}"...`);
-            // setIsAnalysisNameModalOpen(false); // Modal closes itself on submit
+            setIsAnalysisNameModalOpen(false); 
             setTimeout(() => {
                 onNavigateToDashboard({ mode: 'real', analysisName, fileName: selectedFile.name });
-            }, 500);
+            }, 500); // Simulate delay
         }
     };
 
     return (
-        <div className="landing-page-view-wrapper"> {/* Class from index.css */}
+        <div className="landing-page-view-wrapper"> 
             <CustomMessage message={customMessage} isActive={isCustomMessageActive} onClose={() => setIsCustomMessageActive(false)} />
             <div className="landing-page-container">
                 <h1 className="text-3xl font-bold mb-3 text-white">Analizator Danych CSV</h1>

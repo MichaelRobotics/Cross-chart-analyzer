@@ -5,20 +5,19 @@ const DigitalTwinModal = ({ isOpen, onClose, showMessage }) => {
     const [accessCode, setAccessCode] = useState('');
 
     const handleSubmit = () => {
+        const displayMessage = showMessage || alert;
         if (!twinId.trim() || !accessCode.trim()) {
-            if(showMessage) showMessage('Proszę wypełnić oba pola.');
-            else alert('Proszę wypełnić oba pola.');
+            displayMessage('Proszę wypełnić oba pola.');
             return;
         }
-        if(showMessage) showMessage('Cyfrowy Bliźniak (Digital Twin) nie istnieje lub dane są nieprawidłowe.');
-        else alert('Cyfrowy Bliźniak (Digital Twin) nie istnieje lub dane są nieprawidłowe.');
+        displayMessage('Cyfrowy Bliźniak (Digital Twin) nie istnieje lub dane są nieprawidłowe.');
         onClose(); 
     };
 
     if (!isOpen) return null;
 
     return (
-        <div className="modal active"> {/* Classes defined in src/index.css */}
+        <div className="modal active"> 
             <div className="modal-content">
                 <h2 className="modal-title">Połącz z Witness Digital Twin</h2>
                 <p className="text-sm text-gray-400 mb-3">Wprowadź dane dostępowe do Twojego Cyfrowego Bliźniaka Witness.</p>
