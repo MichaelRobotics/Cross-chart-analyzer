@@ -195,8 +195,25 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
             
             // Generate analysis after another short delay
             setTimeout(() => {
-                generateAndDisplayFullAnalysis(messageText, false, false, currentDashboardContextTitle);
-                
+                // Create new analysis block
+                const newBlock = {
+                    id: `analysis-q-${questionIdCounter + 1}`,
+                    titleForBlock: `Odpowiedź na pytanie ${questionIdCounter + 1}`,
+                    question: messageText,
+                    findingsHeading: "Wynik",
+                    findingsContent: `<p>W odpowiedzi na pytanie "${messageText}" (w kontekście: ${currentDashboardContextTitle}), Agent ustalił, że kluczowym elementem jest X. Na przykład, produkty Y wykazują tendencję Z.</p>`,
+                    thoughtProcessContent: `<p>Agent zastosował metodę A do analizy danych dotyczących "${messageText}". Porównano wskaźniki B i C.</p>`,
+                    newSuggestionsContent: [
+                        `Jak zmiana parametru D wpłynie na "${messageText.substring(0,15)}..."?`,
+                        `Czy można zidentyfikować inne czynniki wpływające na "${messageText.substring(0,15).toLowerCase()}..."?`
+                    ]
+                };
+
+                // Update analysis blocks
+                setAnalysisBlocksStore(prevBlocks => [...prevBlocks, newBlock]);
+                setQuestionIdCounter(prev => prev + 1);
+                setCurrentAnalysisIndex(prev => prev + 1);
+
                 // Update AI response with final message
                 setChatMessages(prev => {
                     const newMessages = [...prev];
