@@ -189,32 +189,31 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
     };
 
     const handleSendMessage = (messageText) => {
+        // Add user message immediately
         setChatMessages(prev => [...prev, { sender: 'user', text: messageText }]);
-        const thinkingMessageId = Date.now() + "_thinking" + Math.random(); // More unique ID
         
-        setTimeout(() => { 
-            const thinkingMessageText = `Agent analizuje: "${messageText.substring(0,25)}..."`;
-            setChatMessages(prev => [...prev, { sender: 'ai', text: thinkingMessageText, id: thinkingMessageId }]);
-
-            const newBlockData = generateAndDisplayFullAnalysis(messageText, false, false, currentDashboardContextTitle);
-
+        // Add AI response after a short delay
+        setTimeout(() => {
+            setChatMessages(prev => [...prev, { 
+                sender: 'ai', 
+                text: `Przetwarzam pytanie: "${messageText}"...` 
+            }]);
+            
+            // Generate analysis after another short delay
             setTimeout(() => {
-                let aiChatResponseSummary = `Oto wyniki dla pytania: "${messageText.substring(0, 25)}..."`; 
-                if (newBlockData && newBlockData.findingsContent) {
-                    const tempDiv = document.createElement('div');
-                    tempDiv.innerHTML = newBlockData.findingsContent; 
-                    const firstP = tempDiv.querySelector('p');
-                    if (firstP && firstP.textContent) {
-                        aiChatResponseSummary = firstP.textContent.substring(0, 100) + (firstP.textContent.length > 100 ? "..." : "");
-                    }
-                }
+                generateAndDisplayFullAnalysis(messageText, false, false, currentDashboardContextTitle);
+                
+                // Update AI response with final message
                 setChatMessages(prev => {
-                    const updatedMessages = prev.filter(msg => msg.id !== thinkingMessageId); 
-                    return [...updatedMessages, { sender: 'ai', text: aiChatResponseSummary }];
+                    const newMessages = [...prev];
+                    const lastMessage = newMessages[newMessages.length - 1];
+                    if (lastMessage.sender === 'ai') {
+                        lastMessage.text = `Analiza dla pytania "${messageText}" została wygenerowana. Sprawdź wyniki powyżej.`;
+                    }
+                    return newMessages;
                 });
-            }, 100); 
-
-        }, 500); 
+            }, 1000);
+        }, 500);
     };
 
 
