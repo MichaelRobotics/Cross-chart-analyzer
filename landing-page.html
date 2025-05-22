@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analizator Danych CSV - Strona Główna</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script>
+        // Basic Tailwind config if needed, though most styling will come from CDN defaults + style.css
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans">
+
+    <div id="root" class="min-h-screen flex flex-col items-center justify-center p-4 sm:p-6">
+        <main class="bg-slate-800/70 backdrop-blur-md border border-slate-700 p-6 sm:p-8 md:p-12 rounded-xl shadow-2xl w-full max-w-xl text-center">
+            <h1 id="app-title" class="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 text-sky-400">Analizator Danych CSV</h1>
+            <p id="app-subtitle" class="text-slate-300 mb-8 text-base sm:text-lg">
+                Prześlij plik CSV, aby uzyskać analizę opartą na AI, lub uruchom test z danymi demonstracyjnymi.
+            </p>
+
+            <div id="live-analysis-section" class="mb-6 space-y-4">
+                <div>
+                    <label for="file-upload" id="file-upload-label" class="w-full cursor-pointer bg-sky-500 hover:bg-sky-600 text-white font-semibold py-3 px-6 rounded-lg inline-block transition duration-150 ease-in-out shadow-md hover:shadow-lg">
+                        Wybierz plik CSV
+                    </label>
+                    <input
+                        id="file-upload"
+                        type="file"
+                        accept=".csv,text/csv"
+                        class="hidden"
+                    />
+                </div>
+                <button
+                    id="analyze-file-button"
+                    class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg sm:text-xl transition duration-150 ease-in-out shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled
+                >
+                    Analizuj Plik
+                </button>
+            </div>
+
+            <div id="api-key-warning" class="my-4 p-3 bg-yellow-700/30 border border-yellow-600 text-yellow-300 rounded-md text-sm hidden">
+                Analiza na żywo z AI jest wyłączona. Klucz API Gemini nie został skonfigurowany w pliku <code>js/constants.js</code>.
+            </div>
+
+            <div class="my-4 flex items-center">
+                <hr class="flex-grow border-t border-slate-700" />
+                <span class="px-3 text-slate-500 text-sm">LUB</span>
+                <hr class="flex-grow border-t border-slate-700" />
+            </div>
+
+            <button
+                id="demo-test-button"
+                class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg text-lg sm:text-xl transition duration-150 ease-in-out shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-75 mb-4"
+            >
+                Uruchom Test z Danymi Demo
+            </button>
+
+            <button
+                id="open-witness-modal-button"
+                class="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg text-lg sm:text-xl transition duration-150 ease-in-out shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-75"
+            >
+                Połącz z Witness Digital Twin
+            </button>
+
+            <div id="local-error-message-container" class="mt-4"></div>
+             <div id="loading-spinner-container" class="mt-6 hidden">
+                <div class="loading-spinner animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-sky-500 mx-auto"></div>
+                <p class="text-slate-300 mt-2">Przetwarzanie...</p>
+            </div>
+        </main>
+
+        <footer class="mt-auto py-4 text-center w-full text-slate-500 text-xs sm:text-sm">
+            <span id="footer-app-title">Analizator Danych CSV</span> - Wersja Klasyczna
+        </footer>
+    </div>
+
+    <div id="witness-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="witness-modal-title">
+        <div class="modal-content text-slate-100">
+            <div class="flex justify-between items-center mb-6">
+                <h2 id="witness-modal-title" class="text-xl md:text-2xl font-semibold text-sky-400">Połącz z Witness Digital Twin</h2>
+                <button id="close-witness-modal-button" class="text-slate-400 hover:text-slate-200 text-2xl" aria-label="Zamknij modal">
+                    &times;
+                </button>
+            </div>
+            <form id="witness-form">
+                <div class="mb-4">
+                    <label for="twinId" class="block text-sm font-medium text-slate-300 mb-1">Witness Digital Twin ID</label>
+                    <input
+                        type="text"
+                        id="twinId"
+                        class="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none placeholder-slate-400 text-slate-100"
+                        placeholder="Wprowadź ID Bliźniaka Cyfrowego"
+                        required
+                        aria-required="true"
+                    />
+                </div>
+                <div class="mb-6">
+                    <label for="accessCode" class="block text-sm font-medium text-slate-300 mb-1">Kod Dostępu</label>
+                    <input
+                        type="password"
+                        id="accessCode"
+                        class="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none placeholder-slate-400 text-slate-100"
+                        placeholder="Wprowadź Kod Dostępu"
+                        required
+                        aria-required="true"
+                    />
+                </div>
+                <div class="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3">
+                    <button
+                        type="button"
+                        id="cancel-witness-button"
+                        class="w-full sm:w-auto px-4 py-2.5 bg-slate-600 hover:bg-slate-500 text-slate-200 font-semibold rounded-lg transition duration-150"
+                    >
+                        Anuluj
+                    </button>
+                    <button
+                        type="submit"
+                        class="w-full sm:w-auto px-4 py-2.5 bg-sky-500 hover:bg-sky-600 text-white font-semibold rounded-lg transition duration-150"
+                    >
+                        Połącz
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div id="toast-notification" class="fixed top-5 right-5 bg-green-500 text-white py-2 px-4 rounded-md shadow-lg transition-opacity duration-300 opacity-0 z-2000">
+        Wiadomość!
+    </div>
+
+    <script src="js/constants.js"></script>
+    <script src="js/landing.js"></script>
+</body>
+</html>

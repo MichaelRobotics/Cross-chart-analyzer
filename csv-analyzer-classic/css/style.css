@@ -1,0 +1,308 @@
+/* Custom CSS styles will go here */ 
+/* Global Styles & Resets */
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #1a202c; /* Dark gray-blue, from user's dashboard example */
+    color: #e2e8f0; /* slate-200 / light gray */
+    margin: 0;
+    overscroll-behavior: none;
+}
+
+#root { /* Used in landing-page.html */
+    min-height: 100vh;
+    /* background-color: #0f172a; /* slate-900 from original landing */
+    /* For consistency, landing page body can also use #1a202c or a gradient */
+}
+
+/* Custom Scrollbar CSS (Webkit & Firefox) */
+.custom-scrollbar::-webkit-scrollbar,
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track,
+::-webkit-scrollbar-track {
+    background: #2d3748; /* Darker gray-blue from user's dashboard example */
+    border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb,
+::-webkit-scrollbar-thumb {
+    background: #4a5568; /* Medium gray-blue from user's dashboard example */
+    border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:hover {
+    background: #718096; /* Lighter gray-blue from user's dashboard example */
+}
+/* For Firefox */
+.custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #4a5568 #2d3748;
+}
+
+/* Modal Styles (from original landing page, slightly adapted for consistency) */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1rem;
+}
+.modal-content {
+    background-color: #1f2937; /* Even darker gray-blue, good for modals */
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+    width: 100%;
+    max-width: 500px;
+    border: 1px solid #374151; /* Slightly lighter border */
+}
+.modal-overlay.hidden {
+    display: none;
+}
+
+/* Loading Spinner (shared) */
+.loading-spinner {
+    /* Tailwind classes handle this. No extra CSS needed if Tailwind is used directly. */
+}
+
+
+/* Dashboard Specific Styles - Merged and Refined */
+.sidebar { /* For #topics-sidebar */
+    background-color: #2d3748; /* From user's dashboard example */
+    /* Tailwind classes in HTML handle padding, etc. */
+}
+
+.sidebar-item { /* For topic buttons (now <button>) in sidebar */
+    border-radius: 0.375rem; /* rounded-md */
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.625rem 1rem; /* py-2.5 px-4 */
+    font-size: 0.875rem; /* text-sm */
+    font-weight: 500; /* font-medium */
+    color: #e2e8f0; /* Default text color for items */
+}
+.sidebar-item:hover {
+    background-color: #4a5568; /* From user's dashboard example */
+    color: #ffffff;
+}
+.sidebar-item.active { /* This class will be toggled by JS */
+    background-color: #007bff; /* Bright blue for active from user's example */
+    color: white !important; /* Ensure text color is white for active */
+}
+/* Ensure Tailwind hover doesn't override active if JS also adds Tailwind classes */
+.sidebar-item.active:hover {
+    background-color: #007bff; /* Keep active style on hover */
+}
+
+
+.main-content-bg { /* For #main-content-wrapper */
+    background-color: #2d3748; /* From user's dashboard example */
+    border-radius: 0.5rem; /* rounded-lg */
+}
+
+#analysis-blocks-container.analysis-content-area { /* For #analysis-blocks-container */
+    background-color: #1f2937; /* From user's dashboard example */
+    border-radius: 0.5rem; /* rounded-lg */
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    position: relative;
+    min-height: 300px; /* Ensure it has some height even when empty initially */
+}
+
+.analysis-block { /* Class for individual analysis sections within the container */
+    display: none; /* Initially hidden, JS makes one 'active' */
+    animation: fadeIn 0.5s ease-in-out; /* Simple fade-in for active block */
+}
+.analysis-block.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+
+.title-and-navigation-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+#active-topic-title { /* The H1 showing the current analysis block's title */
+     /* Tailwind handles text size, color, font-weight. Truncate added in HTML. */
+}
+
+.analysis-navigation-arrows {
+    display: flex;
+    gap: 0.5rem;
+}
+.nav-arrow {
+    background-color: #4a5568; /* From user's dashboard example */
+    color: #e2e8f0;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    font-size: 1.25rem;
+    line-height: 1;
+    transition: background-color 0.2s ease-in-out;
+    border: none;
+}
+.nav-arrow:hover:not(:disabled) {
+    background-color: #718096; /* From user's dashboard example */
+}
+.nav-arrow:disabled {
+    background-color: #374151; /* From user's dashboard example */
+    color: #6b7280;
+    cursor: not-allowed;
+}
+
+.analysis-question-title { /* For titles within each analysis block (e.g., "Pytanie: ...") */
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #a0aec0; /* From user's dashboard example */
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #4a5568; /* From user's dashboard example */
+    /* white-space: nowrap; overflow: hidden; text-overflow: ellipsis; are good for single line titles */
+}
+
+.unified-analysis-heading { /* For sub-headings like "Initial Findings", "Proces Myślowy" */
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #90cdf4; /* Light blue from user's dashboard example */
+    margin-bottom: 0.5rem;
+    padding-top: 0.75rem;
+}
+.unified-analysis-heading:first-of-type {
+    padding-top: 0;
+}
+
+/* Prose styles for AI generated content (Tailwind's @tailwindcss/typography plugin helps here) */
+/* These are fallbacks or overrides if the plugin isn't fully effective via CDN or if more control is needed */
+.prose {
+    color: #a0aec0; /* Default prose text color from user's example */
+    font-size: 0.875rem; /* text-sm */
+    line-height: 1.6;
+}
+.prose h1, .prose h2, .prose h3, .prose h4, .prose strong {
+    color: #e2e8f0; /* Lighter color for headings within prose */
+}
+.prose a {
+    color: #90cdf4; /* Light blue for links */
+}
+.prose code {
+    color: #f0abfc; /* Fuchsia, good for dark themes */
+    background-color: #374151; /* Darker background for code */
+    padding: 0.2em 0.4em;
+    border-radius: 0.25rem;
+    font-size: 0.85em; /* Slightly smaller code font */
+}
+.prose pre {
+    background-color: #111827; /* Very dark for code blocks */
+    border: 1px solid #374151;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    overflow-x: auto;
+}
+.prose pre code {
+    background-color: transparent;
+    padding: 0;
+    font-size: 1em; /* Reset font size for pre code */
+}
+.prose ul {
+    list-style-type: disc;
+    padding-left: 1.5rem;
+    margin-bottom: 0.75rem; /* From user's example */
+}
+.prose p, .prose li {
+    margin-bottom: 0.75rem; /* Consistent spacing */
+}
+
+
+/* Chat Interface Styles */
+.symulowany-czat-container {
+    /* Tailwind classes used directly in HTML */
+}
+.chat-input-container { /* Wrapper for messages and input field */
+    background-color: #1f2937; /* From user's dashboard example */
+    border-radius: 0.5rem;
+    /* Tailwind p-4 md:p-6 in HTML */
+}
+#chat-messages { /* The message display area */
+    background-color: #2d3748; /* Slightly lighter than container, from user's example chat-input */
+    border: 1px solid #4a5568; /* From user's example chat-input */
+    /* Tailwind classes: space-y-3 mb-4 h-64 overflow-y-auto p-3 rounded-md */
+}
+/* Chat message styling (user vs AI) */
+#chat-messages .flex.justify-end .p-3 { /* User message */
+    background-color: #0ea5e9; /* sky-500 */
+    color: white;
+    border-radius: 0.75rem; /* rounded-xl */
+    border-bottom-right-radius: 0.25rem; /* Slightly different corner */
+}
+#chat-messages .flex.justify-start .p-3 { /* AI/System message */
+    background-color: #4b5563; /* gray-600 */
+    color: #e5e7eb; /* gray-200 */
+    border-radius: 0.75rem; /* rounded-xl */
+    border-bottom-left-radius: 0.25rem; /* Slightly different corner */
+}
+#chat-messages .flex.justify-start .italic .p-3 { /* System "typing" message */
+    background-color: #374151; /* gray-700 */
+    color: #9ca3af; /* gray-400 */
+}
+
+
+.chat-input { /* The text input field */
+    background-color: #2d3748; /* From user's example */
+    color: #e2e8f0;
+    border: 1px solid #4a5568;
+    /* Tailwind: flex-1 p-3 rounded-md text-sm focus:ring-2 focus:ring-blue-500 outline-none */
+}
+.chat-input::placeholder {
+    color: #718096; /* From user's example */
+}
+.chat-button { /* Send button */
+    background-color: #007bff; /* Blue from user's example */
+    color: white;
+    /* Tailwind: py-3 px-6 rounded-md text-sm font-medium */
+}
+.chat-button:hover:not(:disabled) {
+    background-color: #0056b3; /* Darker blue */
+}
+.chat-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.bottom-button { /* For "Analizuj Nowy Plik" */
+    background-color: #007bff; /* Blue from user's example */
+    color: white;
+    /* Tailwind: w-full py-2.5 px-4 rounded-md text-sm font-medium */
+}
+.bottom-button:hover {
+    background-color: #0056b3; /* Darker blue */
+}
+
+
+/* Toast Notification (Landing Page) */
+#toast-notification {
+    /* Tailwind classes: fixed top-5 right-5 bg-green-500 text-white py-2 px-4 rounded-md shadow-lg transition-opacity duration-300 opacity-0 z-2000 */
+}
+#toast-notification.show {
+    opacity: 1;
+}
+
+/* Utility for hidden elements */
+.hidden {
+    display: none !important;
+}

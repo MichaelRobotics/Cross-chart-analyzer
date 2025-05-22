@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Podgląd Analizy CSV</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+     <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            },
+            // Ensure Typography plugin is available if using prose classes extensively
+            // plugins: [tailwind.plugins.typography], // Uncomment if prose styles are missing
+        }
+    </script>
+</head>
+<body class="flex flex-col md:flex-row min-h-screen bg-slate-900 text-slate-100 font-sans">
+
+    <aside id="topics-sidebar" class="sidebar w-full md:w-64 lg:w-72 p-4 space-y-2 shrink-0 md:h-screen md:sticky md:top-0 flex flex-col">
+        <h2 class="text-xl font-semibold mb-4 px-2 text-gray-300">Tematy Analizy</h2>
+        <nav id="topics-nav" class="flex-grow overflow-y-auto custom-scrollbar pr-2">
+            <ul id="topics-list">
+                </ul>
+        </nav>
+        <div class="mt-auto pt-4 md:pt-10">
+            <button id="analyze-new-file-button" class="bottom-button w-full py-2.5 px-4 rounded-md text-sm font-medium">
+                Analizuj Nowy Plik
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto">
+        <div id="main-content-wrapper" class="main-content-bg p-6 md:p-8 rounded-xl shadow-xl">
+            <div id="loading-spinner-dashboard" class="hidden flex-col items-center justify-center py-10">
+                <div class="loading-spinner animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-sky-500"></div>
+                <p class="mt-4 text-xl text-slate-300">Przetwarzanie...</p>
+            </div>
+
+            <div id="global-error-container" class="hidden text-center py-10">
+                 <h2 class="text-2xl sm:text-3xl font-semibold mb-4 text-red-400">Błąd</h2>
+                 <p id="global-error-message-text" class="text-red-300 bg-red-900/40 p-4 rounded-md">Wystąpił błąd.</p>
+                 <button
+                    id="back-to-landing-button-error"
+                    class="mt-6 bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2.5 px-6 rounded-lg transition duration-150"
+                 >
+                    Wróć do strony głównej
+                </button>
+            </div>
+            
+            <div id="analysis-display-section" class="hidden"> {/* Initially hidden until content is ready */}
+                <div class="title-and-navigation-container">
+                    <h1 id="active-topic-title" class="text-2xl md:text-3xl font-bold text-white truncate pr-2">Ładowanie analizy...</h1>
+                    <div class="analysis-navigation-arrows">
+                        <button id="prev-analysis-btn" class="nav-arrow" aria-label="Poprzednia analiza" disabled>&lt;</button>
+                        <button id="next-analysis-btn" class="nav-arrow" aria-label="Następna analiza" disabled>&gt;</button>
+                    </div>
+                </div>
+
+                {/* Container for all analysis blocks - only one 'active' at a time */}
+                <div id="analysis-blocks-container" class="analysis-content-area">
+                    {/* Analysis blocks will be injected here by js/dashboard.js */}
+                    <p id="initial-placeholder-message" class="text-slate-400">Ładowanie danych analizy...</p>
+                </div>
+
+                <div class="symulowany-czat-container mt-8">
+                    <h2 class="text-xl md:text-2xl font-bold mb-4 text-white">Dodatkowe Pytania (Symulowany Czat)</h2>
+                    <div class="chat-input-container p-4 md:p-6">
+                        <div id="chat-messages" class="space-y-3 mb-4 h-64 overflow-y-auto p-3 bg-gray-800 rounded-md border border-gray-700 custom-scrollbar">
+                            {/* Chat messages will be populated here */}
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <input type="text" id="chat-input-field" class="chat-input flex-1 p-3 rounded-md text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Zadaj pytanie...">
+                            <button id="send-chat-button" class="chat-button py-3 px-6 rounded-md text-sm font-medium">Wyślij</button>
+                        </div>
+                    </div>
+                </div>
+            </div> 
+        </div> 
+    </main>
+
+    <script src="js/constants.js"></script>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>

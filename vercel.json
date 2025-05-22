@@ -1,0 +1,7 @@
+{
+    "redirects": [
+      { "source": "/", "destination": "/landing-page.html", "permanent": true }
+    ],
+    "cleanUrls": true
+}
+  
