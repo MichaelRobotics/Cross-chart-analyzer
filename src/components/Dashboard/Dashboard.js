@@ -2,7 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from './Sidebar';
 import AnalysisContent from './AnalysisContent';
 import Chat from './Chat';
-import { useAnalysisContext } from '../../contexts/AnalysisContext';
+import { useAnalysisContext } from '../../contexts/AnalysisContext'; // Correctly uses the hook
+
+// This component should NOT import or use <AnalysisProvider> or <LandingPage> directly.
 
 const Dashboard = ({ params, onNavigateToLanding }) => {
     const [analysisBlocksStore, setAnalysisBlocksStore] = useState([]);
@@ -16,7 +18,7 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
     const generateAndDisplayFullAnalysis = useCallback((questionText, isInitial = false, isRealData = false, topicContextForContent = null) => {
         let newBlockData;
         setQuestionIdCounter(prevCounter => {
-            const currentQId = isInitial ? prevCounter : prevCounter + 1; // Only increment for non-initial
+            const currentQId = isInitial ? prevCounter : prevCounter + 1;
             const analysisBlockId = isInitial ? 'initial-analysis' : `analysis-q-${currentQId}`;
             
             let blockTitleForNavigation;
@@ -45,7 +47,7 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
                         `Jakie są kluczowe wskaźniki dla ${effectiveTopicContext}?`,
                         `Poproś o szczegółową analizę X w kontekście ${effectiveTopicContext}.`
                     ];
-                } else { // Default for "Moje Analizy" if empty, or "Analiza Holistyczna" demo
+                } else { 
                     findingsContent = `<p>Agent zidentyfikował, że produkty o relatywnie wysokim koszcie materiału nie zawsze korelują z najdłuższym czasem realizacji...</p><p>Dodatkowo, pewna grupa produktów charakteryzująca się niskim 'Wartość Dodana VA %'...</p>`;
                     thoughtProcessContent = `<p>Aby sformułować te spostrzeżenia, Agent wykonał następujące kroki:</p><ul class="mt-2 space-y-1"><li>Agent obliczył złożone wskaźniki...</li><li>Agent przeprowadził analizę kwadrantową...</li><li>Agent porównał profile kosztowe...</li></ul>`;
                     newSuggestionsContent = ["Które kategorie produktów wykazują największą dysproporcję...?", "Czy istnieje segment produktów, gdzie wysoka wartość 'NVA %'...", "Jakie czynniki, poza bezpośrednimi kosztami..."];
@@ -69,30 +71,23 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
             };
             
             setAnalysisBlocksStore(prevBlocks => {
-                if (isInitial) { // If it's the initial block, replace the store
+                if (isInitial) { 
                     return [newBlockData]; 
-                }
-                // For subsequent blocks, add to the existing store
-                const existingIndex = prevBlocks.findIndex(b => b.id === analysisBlockId);
-                if (existingIndex > -1) { // Should not happen for non-initial if ID is unique
-                    const updatedBlocks = [...prevBlocks];
-                    updatedBlocks[existingIndex] = newBlockData;
-                    return updatedBlocks;
                 }
                 return [...prevBlocks, newBlockData]; 
             });
             return currentQId; 
         });
         return newBlockData; 
-    }, [currentDashboardContextTitle]); // questionIdCounter removed as it's managed internally now
+    }, [currentDashboardContextTitle]); // Removed questionIdCounter from deps
 
 
     useEffect(() => {
         if (analysisBlocksStore.length > 0) {
             const lastBlock = analysisBlocksStore[analysisBlocksStore.length - 1];
-            if (lastBlock && lastBlock.id !== 'initial-analysis') { // If last block is a question answer
+            if (lastBlock && lastBlock.id !== 'initial-analysis') { 
                 setCurrentAnalysisIndex(analysisBlocksStore.length - 1);
-            } else if (lastBlock && lastBlock.id === 'initial-analysis') { // If it's the initial block
+            } else if (lastBlock && lastBlock.id === 'initial-analysis') { 
                 setCurrentAnalysisIndex(0);
             }
         } else {
@@ -137,13 +132,14 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
         setAnalysisBlocksStore([]); 
         setChatMessages([]);      
 
+        let initialBlockGenerated;
         if (mode === 'real') {
-            generateAndDisplayFullAnalysis(`Analiza dla: ${analysisName} (Plik: ${fileName})`, true, true, newContextTitle);
+            initialBlockGenerated = generateAndDisplayFullAnalysis(`Analiza dla: ${analysisName} (Plik: ${fileName})`, true, true, newContextTitle);
             setChatMessages(prev => [...prev, { sender: 'ai', text: `Załadowano analizę: ${analysisName}` }]);
         } else if (mode === 'topic_context') {
-             generateAndDisplayFullAnalysis(newContextTitle, true, false, newContextTitle);
+             initialBlockGenerated = generateAndDisplayFullAnalysis(newContextTitle, true, false, newContextTitle);
         } else { // Demo mode
-            generateAndDisplayFullAnalysis("Analiza Początkowa", true, false, newContextTitle);
+            initialBlockGenerated = generateAndDisplayFullAnalysis("Analiza Początkowa", true, false, newContextTitle);
         }
         
         if (mode === 'real' || mode === 'demo' || mode === 'topic_context') {
@@ -151,7 +147,6 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
                 const q1 = "Zidentyfikuj produkty, gdzie koszt przezbrojenia ma nieproporcjonalnie duży wpływ na całkowity koszt jednostkowy w stosunku do wolumenu produkcji.";
                 const block1Data = generateAndDisplayFullAnalysis(q1, false, false, newContextTitle);
                 setChatMessages(prev => [...prev, {sender: 'user', text: q1}, {sender: 'ai', text: `Agent analizuje: "${q1.substring(0,25)}..."`}]);
-                // Simulate getting the real answer for chat after block generation
                 setTimeout(() => {
                     setChatMessages(prev => {
                         const updated = prev.filter(m => !(m.sender === 'ai' && m.text.startsWith('Agent analizuje:')));
@@ -265,34 +260,4 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
     );
 };
 
-
-// --- Main App Component ---
-function App() {
-    const [currentView, setCurrentView] = useState('landing'); 
-    const [dashboardParams, setDashboardParams] = useState({ mode: 'my_analyses' }); 
-    
-    const navigateToDashboard = (params) => {
-        setDashboardParams(params || { mode: 'my_analyses' });
-        setCurrentView('dashboard');
-    };
-
-    const navigateToLanding = (navParams = {}) => { 
-        if (navParams.dashboardParams) { 
-            setDashboardParams(navParams.dashboardParams);
-            setCurrentView('dashboard'); 
-        } else {
-            setCurrentView('landing');
-        }
-    };
-
-    return (
-        <AnalysisProvider>
-            {/* GlobalStyle component removed, styles are in index.css */}
-            {currentView === 'landing' && <LandingPage onNavigateToDashboard={navigateToDashboard} />}
-            {currentView === 'dashboard' && <Dashboard params={dashboardParams} onNavigateToLanding={navigateToLanding} />}
-        </AnalysisProvider>
-    );
-}
-
-export default App;
-
+export default Dashboard;
