@@ -1,7 +1,18 @@
 {
-    "redirects": [
-      { "source": "/", "destination": "/landing-page.html", "permanent": true }
+    "version": 2,
+    "builds": [
+      {
+        "src": "package.json",
+        "use": "@vercel/static-build",
+        "config": { "distDir": "build" } // Zmień na 'dist' jeśli używasz Vite
+      },
+      {
+        "src": "api/**/*.js",
+        "use": "@vercel/node"
+      }
     ],
-    "cleanUrls": true
-}
-  
+    "routes": [
+      { "src": "/api/(.*)", "dest": "/api/$1" },
+      { "src": "/(.*)", "dest": "/index.html" } // Dla SPA React, aby wszystkie ścieżki kierowały do index.html
+    ]
+  }

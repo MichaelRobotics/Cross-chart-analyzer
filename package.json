@@ -1,0 +1,45 @@
+{
+    "name": "csv-data-analyzer",
+    "version": "0.1.0",
+    "private": true,
+    "description": "A CSV Data Analyzer application with a React frontend and Node.js serverless backend using Gemini and Firebase.",
+    "scripts": {
+      "start": "react-scripts start",
+      "build": "react-scripts build",
+      "test": "react-scripts test",
+      "eject": "react-scripts eject",
+      "dev": "vercel dev"
+    },
+    "dependencies": {
+      "react": "^18.2.0",
+      "react-dom": "^18.2.0",
+      "@google/generative-ai": "^0.1.0",  // Or the latest version for Gemini API
+      "firebase-admin": "^12.0.0",        // For backend Firebase interaction
+      "papaparse": "^5.4.1"               // For CSV parsing in Node.js backend
+      // Add any other frontend libraries you might use, e.g., for routing or state management
+      // "react-router-dom": "^6.10.0"
+    },
+    "devDependencies": {
+      "react-scripts": "5.0.1",          // From Create React App
+      "tailwindcss": "^3.3.0"            // If you set up Tailwind with PostCSS for React
+      // Add other dev dependencies like ESLint, Prettier if you use them
+    },
+    "eslintConfig": {
+      "extends": [
+        "react-app",
+        "react-app/jest"
+      ]
+    },
+    "browserslist": {
+      "production": [
+        ">0.2%",
+        "not dead",
+        "not op_mini all"
+      ],
+      "development": [
+        "last 1 chrome version",
+        "last 1 firefox version",
+        "last 1 safari version"
+      ]
+    }
+  }
