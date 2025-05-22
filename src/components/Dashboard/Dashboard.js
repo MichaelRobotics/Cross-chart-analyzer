@@ -14,20 +14,16 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
     const { userCreatedAnalyses } = useAnalysisContext();
 
     const generateAndDisplayFullAnalysis = useCallback((questionText, isInitial = false, isRealData = false, topicContextForContent = null) => {
-        let newBlockData;
-        let blockSpecificQuestionId = questionIdCounter; // Use current counter for ID generation if !isInitial
+        const newQuestionIdCounter = isInitial ? questionIdCounter : questionIdCounter + 1;
+        if (!isInitial) setQuestionIdCounter(newQuestionIdCounter);
 
-        if (!isInitial) {
-            blockSpecificQuestionId = questionIdCounter + 1; // This ID will be for the new block
-        }
-        
-        const analysisBlockId = isInitial ? 'initial-analysis' : `analysis-q-${blockSpecificQuestionId}`;
+        const analysisBlockId = isInitial ? 'initial-analysis' : `analysis-q-${newQuestionIdCounter}`;
         
         let blockTitleForNavigation;
         if (isInitial) {
             blockTitleForNavigation = topicContextForContent || questionText;
         } else {
-            blockTitleForNavigation = `Odpowiedź na pytanie ${blockSpecificQuestionId}`;
+            blockTitleForNavigation = `Odpowiedź na pytanie ${newQuestionIdCounter}`;
         }
 
         let findingsHeading, findingsContent, thoughtProcessContent, newSuggestionsContent;
@@ -39,11 +35,11 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
                 findingsContent = `<p>To jest symulowana analiza dla <strong>${effectiveTopicContext}</strong>. W rzeczywistej aplikacji tutaj pojawiłyby się wyniki parsowania i analizy pliku CSV.</p>`;
                 thoughtProcessContent = `<p>1. Wczytano plik CSV.<br>2. Przeprowadzono wstępne przetwarzanie danych.<br>3. Wygenerowano kluczowe metryki (symulacja).</p>`;
                 newSuggestionsContent = [
-                    `Jakie są trendy w danych dla ${ (effectiveTopicContext).substring(0,20)}...?`,
+                    `Jakie są trendy w danych dla ${(effectiveTopicContext).substring(0,20)}...?`,
                     `Czy można zidentyfikować anomalie w ${(effectiveTopicContext).substring(0,20)}...?`
                 ];
-            } else if (effectiveTopicContext && effectiveTopicContext !== "Moje Analizy" && effectiveTopicContext !== "Analiza Holistyczna" && effectiveTopicContext !== "Analiza Początkowa") { 
-                 findingsContent = `<p>Dane dla tematu '<strong>${effectiveTopicContext}</strong>' są obecnie symulowane.</p><p>Możesz zadać pytania dotyczące tego tematu w czacie poniżej.</p>`;
+            } else if (effectiveTopicContext && effectiveTopicContext !== "Moje Analizy") { 
+                findingsContent = `<p>Dane dla tematu '<strong>${effectiveTopicContext}</strong>' są obecnie symulowane.</p><p>Możesz zadać pytania dotyczące tego tematu w czacie poniżej.</p>`;
                 thoughtProcessContent = `<p>Analiza dla '<strong>${effectiveTopicContext}</strong>' jest w toku. Agent jest gotowy na Twoje pytania.</p>`;
                 newSuggestionsContent = [
                     `Jakie są kluczowe wskaźniki dla ${effectiveTopicContext}?`,
@@ -56,13 +52,12 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
             }
         } else { 
             findingsHeading = "Wynik";
-            const qExcerpt = questionText.substring(0,62) + (questionText.length > 65 ? "..." : "");
-            findingsContent = `<p>W odpowiedzi na pytanie "${qExcerpt}" (w kontekście: ${effectiveTopicContext}), Agent ustalił, że kluczowym elementem jest X. Na przykład, produkty Y wykazują tendencję Z.</p>`;
-            thoughtProcessContent = `<p>Agent zastosował metodę A do analizy danych dotyczących "${qExcerpt}". Porównano wskaźniki B i C.</p>`;
-            newSuggestionsContent = [`Jak zmiana parametru D wpłynie na "${qExcerpt.substring(0,15)}..."?`, `Czy można zidentyfikować inne czynniki wpływające na "${qExcerpt.substring(0,15).toLowerCase()}..."?`];
+            findingsContent = `<p>W odpowiedzi na pytanie "${questionText}" (w kontekście: ${effectiveTopicContext}), Agent ustalił, że kluczowym elementem jest X. Na przykład, produkty Y wykazują tendencję Z.</p>`;
+            thoughtProcessContent = `<p>Agent zastosował metodę A do analizy danych dotyczących "${questionText}". Porównano wskaźniki B i C.</p>`;
+            newSuggestionsContent = [`Jak zmiana parametru D wpłynie na "${questionText.substring(0,15)}..."?`, `Czy można zidentyfikować inne czynniki wpływające na "${questionText.substring(0,15).toLowerCase()}..."?`];
         }
 
-        newBlockData = { 
+        const newBlock = { 
             id: analysisBlockId, 
             titleForBlock: blockTitleForNavigation, 
             question: questionText,
@@ -73,23 +68,22 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
         };
         
         setAnalysisBlocksStore(prevBlocks => {
-            let newBlocksArray;
-            if (isInitial) { 
-                newBlocksArray = [newBlockData]; 
-                setCurrentAnalysisIndex(0); // Set index for initial block
-            } else {
-                // For new question blocks, always append.
-                newBlocksArray = [...prevBlocks, newBlockData];
-                setCurrentAnalysisIndex(newBlocksArray.length - 1); // Set index to the new block
+            // If it's an initial analysis, replace it
+            if (isInitial) {
+                const filteredBlocks = prevBlocks.filter(b => b.id !== 'initial-analysis');
+                return [newBlock, ...filteredBlocks];
             }
-            return newBlocksArray; 
+            // For new questions, add to the end
+            return [...prevBlocks, newBlock];
         });
-        
-        if (!isInitial) {
-            setQuestionIdCounter(prevCounter => prevCounter + 1); // Increment counter after use
+
+        // Set current index to the newly added block
+        if (isInitial) {
+            setCurrentAnalysisIndex(0);
+        } else {
+            setCurrentAnalysisIndex(prevBlocks => prevBlocks.length);
         }
-        return newBlockData; 
-    }, [currentDashboardContextTitle, questionIdCounter]);
+    }, [questionIdCounter, currentDashboardContextTitle]);
 
 
     useEffect(() => {
