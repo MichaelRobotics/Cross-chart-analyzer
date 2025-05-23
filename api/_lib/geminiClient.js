@@ -41,24 +41,27 @@ async function generateContent(
   // might place their named exports on a 'default' object. Fallback to the module itself.
   const exports = importedModule.default || importedModule;
   
-  const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = exports;
+  // CORRECTED: Use GoogleGenAI instead of GoogleGenerativeAI
+  const { GoogleGenAI, HarmCategory, HarmBlockThreshold } = exports;
 
   // Verify that the crucial exports were found
-  if (typeof GoogleGenerativeAI !== 'function') {
-    console.error("GoogleGenerativeAI is not a constructor or not found. Imported module structure:", importedModule);
-    throw new Error('Failed to load GoogleGenerativeAI constructor from @google/genai module.');
+  if (typeof GoogleGenAI !== 'function') { // CORRECTED check
+    console.error("GoogleGenAI is not a constructor or not found. Imported module structure:", importedModule);
+    throw new Error('Failed to load GoogleGenAI constructor from @google/genai module.');
   }
   if (!HarmCategory || !HarmBlockThreshold) {
     console.error("HarmCategory or HarmBlockThreshold not found. Imported module structure:", importedModule);
     throw new Error('Failed to load HarmCategory/HarmBlockThreshold from @google/genai module.');
   }
 
-  // Initialize genAI instance now that GoogleGenerativeAI is available
-  const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
+  // Initialize genAI instance now that GoogleGenAI is available
+  // CORRECTED: Use GoogleGenAI
+  const genAI = GEMINI_API_KEY ? new GoogleGenAI(GEMINI_API_KEY) : null;
+
 
   if (!genAI) {
     // This case would typically be caught by the GEMINI_API_KEY check earlier,
-    // or if GoogleGenerativeAI was truly not a constructor.
+    // or if GoogleGenAI was truly not a constructor.
     throw new Error('Gemini API client could not be initialized. Check GEMINI_API_KEY.');
   }
 
@@ -150,7 +153,8 @@ async function generateContent(
     if (error.message && error.message.includes("API key not valid")) {
         console.error("Please check if your GEMINI_API_KEY is correct and has the necessary permissions.");
     }
-    if (error.constructor && error.constructor.name === 'GoogleGenerativeAIResponseError') { // More specific check for SDK's own error type
+    // Check for the more specific error type if the SDK provides it
+    if (error.constructor && error.constructor.name === 'GoogleGenerativeAIResponseError') { 
         console.error("Gemini API Response Error Details:", error.response || "No additional response details.");
     }
     throw error;
