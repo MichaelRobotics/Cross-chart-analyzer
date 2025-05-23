@@ -41,27 +41,35 @@ async function generateContent(
   // might place their named exports on a 'default' object. Fallback to the module itself.
   const exports = importedModule.default || importedModule;
   
-  // CORRECTED: Use GoogleGenAI instead of GoogleGenerativeAI
   const { GoogleGenAI, HarmCategory, HarmBlockThreshold } = exports;
 
-  // Verify that the crucial exports were found
-  if (typeof GoogleGenAI !== 'function') { // CORRECTED check
-    console.error("GoogleGenAI is not a constructor or not found. Imported module structure:", importedModule);
+  if (typeof GoogleGenAI !== 'function') {
+    console.error("GoogleGenAI is not a constructor or not found. Imported module structure:", JSON.stringify(importedModule, null, 2));
     throw new Error('Failed to load GoogleGenAI constructor from @google/genai module.');
   }
   if (!HarmCategory || !HarmBlockThreshold) {
-    console.error("HarmCategory or HarmBlockThreshold not found. Imported module structure:", importedModule);
+    console.error("HarmCategory or HarmBlockThreshold not found. Imported module structure:", JSON.stringify(importedModule, null, 2));
     throw new Error('Failed to load HarmCategory/HarmBlockThreshold from @google/genai module.');
   }
 
-  // Initialize genAI instance now that GoogleGenAI is available
-  // CORRECTED: Use GoogleGenAI
   const genAI = GEMINI_API_KEY ? new GoogleGenAI(GEMINI_API_KEY) : null;
+
+  // +++ ADDED LOGGING +++
+  console.log("GEMINI_API_KEY is set:", !!GEMINI_API_KEY);
+  console.log("Type of genAI instance:", typeof genAI);
+  if (genAI) {
+    console.log("genAI instance:", JSON.stringify(genAI, null, 2)); // Might be a complex object
+    console.log("Is genAI.getGenerativeModel a function?", typeof genAI.getGenerativeModel);
+    console.log("Keys on genAI instance:", Object.keys(genAI));
+    // Attempt to log prototype chain methods if direct keys don't show it
+    if (Object.getPrototypeOf(genAI)) {
+        console.log("Methods on genAI prototype:", Object.getOwnPropertyNames(Object.getPrototypeOf(genAI)));
+    }
+  }
+  // +++ END ADDED LOGGING +++
 
 
   if (!genAI) {
-    // This case would typically be caught by the GEMINI_API_KEY check earlier,
-    // or if GoogleGenAI was truly not a constructor.
     throw new Error('Gemini API client could not be initialized. Check GEMINI_API_KEY.');
   }
 
@@ -76,13 +84,14 @@ async function generateContent(
   try {
     const finalSafetySettings = (Array.isArray(safetySettingsOverrides) && safetySettingsOverrides.length > 0)
       ? safetySettingsOverrides
-      : currentDefaultSafetySettings; // Use dynamically defined defaults
+      : currentDefaultSafetySettings; 
 
     const finalGenerationConfig = {
-      ...defaultGenerationConfig, // Use top-level defaults
+      ...defaultGenerationConfig, 
       ...generationConfigOverrides,
     };
 
+    // This is where the error occurs: genAI.getGenerativeModel is not a function
     const model = genAI.getGenerativeModel({
       model: modelName,
       safetySettings: finalSafetySettings,
@@ -153,7 +162,6 @@ async function generateContent(
     if (error.message && error.message.includes("API key not valid")) {
         console.error("Please check if your GEMINI_API_KEY is correct and has the necessary permissions.");
     }
-    // Check for the more specific error type if the SDK provides it
     if (error.constructor && error.constructor.name === 'GoogleGenerativeAIResponseError') { 
         console.error("Gemini API Response Error Details:", error.response || "No additional response details.");
     }
