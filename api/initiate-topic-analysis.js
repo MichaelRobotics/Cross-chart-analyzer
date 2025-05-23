@@ -57,23 +57,23 @@ export default async function handler(req, res) {
 
     // 4. Construct the Initial Prompt for Gemini
     const initialPrompt = `
-      You are an AI Data Analysis Agent.
-      Your mission is to help me perform a cross-analysis and uncover valuable insights related to the topic: "${topicDisplayName}".
-      The data you are analyzing primarily concerns: "${dataNatureDescription}".
-      Please focus your analysis of "${topicDisplayName}" through this lens, considering the overall nature of the dataset.
+      Jesteś Agentem AI do Analizy Danych.
+      Twoim zadaniem jest pomóc mi przeprowadzić analizę krzyżową i odkryć cenne spostrzeżenia związane z tematem: "${topicDisplayName}".
+      Dane, które analizujesz, dotyczą przede wszystkim: "${dataNatureDescription}".
+      Skup swoją analizę tematu "${topicDisplayName}" przez ten pryzmat, biorąc pod uwagę ogólną naturę zbioru danych.
       
-      About Your Data (summary):
+      O Twoich Danych (podsumowanie):
       ${typeof dataSummaryForPrompts === 'string' ? dataSummaryForPrompts : JSON.stringify(dataSummaryForPrompts, null, 2)}
 
-      Your First Response - Initial Analysis & Guidance:
-      Provide your analysis formatted as a JSON object with the following exact keys:
-      - "initialFindings": (String) Your key initial observations, insights, or hypotheses related to "${topicDisplayName}" based on the provided data summary. This string should be formatted with HTML tags for paragraphs (e.g., "<p>Insight 1.</p><p>Insight 2.</p>"). When referring to column names from the data summary (e.g., OperatorWorkload_%, TasksCompleted), do NOT use backticks. Instead, wrap the exact column name in <span class="column-name-highlight"></span>. For example, if referring to 'OperatorWorkload_%', write it as <span class="column-name-highlight">OperatorWorkload_%</span>. IMPORTANT: The entire string value for "initialFindings" must be a valid JSON string. This means any double quotes (") that are part of the text content or attributes within the HTML (including the class attribute in the span) MUST be escaped as \\". For example, if a paragraph is '<p>He said "More data!".</p>', it should be represented in the string as "<p>He said \\"More data!\\".</p>".
-      - "thoughtProcess": (String) Briefly explain the steps or reasoning you took to arrive at these initialFindings. Mention which parts of the data summary were most relevant. This string should be formatted as an HTML unordered list (e.g., "<ul><li>Step one explaining \\"why\\".</li><li>Step two.</li><li>Step three.</li></ul>") containing exactly 3 bullet points. When referring to column names, do NOT use backticks. Instead, wrap the exact column name in <span class="column-name-highlight"></span> as described above. IMPORTANT: The entire string value for "thoughtProcess" must be a valid JSON string. This means any double quotes (") that are part of the text content or attributes within the HTML list items (including the class attribute in the span) MUST be escaped as \\".
-      - "questionSuggestions": (Array of strings) Provide 3-5 insightful plain text follow-up questions the user could ask to delve deeper into "${topicDisplayName}" or explore related aspects. These questions should be actionable and based on your initial findings or the data's nature. Each string in the array should be a simple textual question without any HTML markup. Do NOT use backticks or HTML spans for column names in these suggestions; just use the plain column name.
+      Twoja Pierwsza Odpowiedź - Wstępna Analiza i Wskazówki:
+      Dostarcz swoją analizę sformatowaną jako obiekt JSON z następującymi dokładnymi kluczami:
+      - "initialFindings": (String) Twoje kluczowe wstępne obserwacje, spostrzeżenia lub hipotezy związane z "${topicDisplayName}" na podstawie dostarczonego podsumowania danych. Ten ciąg znaków powinien być sformatowany za pomocą tagów HTML dla akapitów (np. "<p>Spostrzeżenie 1.</p><p>Spostrzeżenie 2.</p>"). Kiedy odnosisz się do nazw kolumn z podsumowania danych (np. OperatorWorkload_%, TasksCompleted), NIE używaj odwrotnych apostrofów. Zamiast tego, otocz dokładną nazwę kolumny tagiem <span class="column-name-highlight"></span>. Na przykład, jeśli odnosisz się do 'OperatorWorkload_%', zapisz to jako <span class="column-name-highlight">OperatorWorkload_%</span>. WAŻNE: Cała wartość ciągu znaków dla "initialFindings" musi być prawidłowym ciągiem JSON. Oznacza to, że wszelkie cudzysłowy (") będące częścią treści tekstowej lub atrybutów w HTML (w tym atrybutu class w tagu span) MUSZĄ być poprzedzone znakiem ucieczki jako \\". Na przykład, jeśli akapit to '<p>Powiedział "Więcej danych!".</p>', powinien być reprezentowany w ciągu jako "<p>Powiedział \\"Więcej danych!\\".</p>".
+      - "thoughtProcess": (String) Krótko wyjaśnij kroki lub rozumowanie, które doprowadziły Cię do tych wstępnych ustaleń. Wspomnij, które części podsumowania danych były najbardziej istotne. Ten ciąg znaków powinien być sformatowany jako nieuporządkowana lista HTML (np. "<ul><li>Krok pierwszy wyjaśniający \\"dlaczego\\".</li><li>Krok drugi.</li><li>Krok trzeci.</li></ul>") zawierająca dokładnie 3 punkty. Kiedy odnosisz się do nazw kolumn, NIE używaj odwrotnych apostrofów. Zamiast tego, otocz dokładną nazwę kolumny tagiem <span class="column-name-highlight"></span>, jak opisano powyżej. WAŻNE: Cała wartość ciągu znaków для "thoughtProcess" musi być prawidłowym ciągiem JSON. Oznacza to, że wszelkie cudzysłowy (") będące częścią treści tekstowej lub atrybutów w elementach listy HTML (w tym atrybutu class w tagu span) MUSZĄ być poprzedzone znakiem ucieczki jako \\".
+      - "questionSuggestions": (Array of strings) Podaj 3-5 wnikliwych pytań uzupełniających (w formie zwykłego tekstu), które użytkownik mógłby zadać, aby zagłębić się w temat "${topicDisplayName}" lub zbadać powiązane aspekty. Pytania te powinny być praktyczne i oparte na Twoich wstępnych ustaleniach lub naturze danych. Każdy ciąg znaków w tablicy powinien być prostym pytaniem tekstowym bez żadnych znaczników HTML. NIE używaj odwrotnych apostrofów ani tagów span HTML dla nazw kolumn w tych sugestiach; używaj po prostu zwykłej nazwy kolumny.
 
-      Interaction Style: Be analytical, insightful, and proactive in suggesting next steps.
+      Styl Interakcji: Bądź analityczny, wnikliwy i proaktywny w sugerowaniu kolejnych kroków.
 
-      Now, please provide your initial analysis for "${topicDisplayName}" based on the dataset summary.
+      Teraz proszę, przedstaw swoją wstępną analizę dla tematu "${topicDisplayName}" na podstawie podsumowania zbioru danych.
     `;
     
     await topicDocRef.update({ initialPromptSent: initialPrompt });

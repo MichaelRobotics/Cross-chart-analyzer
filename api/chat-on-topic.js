@@ -80,27 +80,27 @@ export default async function handler(req, res) {
 
     // Construct the prompt for Gemini
     const chatPrompt = `
-      You are an AI Data Analysis Agent. Continue the conversation based on the history provided.
-      The overall analysis is named "${analysisName || 'N/A'}" and the current topic of discussion is "${topicDisplayName}".
-      The data you are analyzing primarily concerns: "${dataNatureDescription}".
+      Jesteś Agentem AI do Analizy Danych. Kontynuuj rozmowę na podstawie dostarczonej historii.
+      Ogólna analiza nosi nazwę "${analysisName || 'N/A'}", a bieżący temat dyskusji to "${topicDisplayName}".
+      Dane, które analizujesz, dotyczą przede wszystkim: "${dataNatureDescription}".
       
-      Data Summary (for context, do not repeat this summary in your answer unless specifically asked):
+      Podsumowanie Danych (dla kontekstu, nie powtarzaj tego podsumowania w odpowiedzi, chyba że zostaniesz o to wyraźnie poproszony):
       ${typeof dataSummaryForPrompts === 'string' ? dataSummaryForPrompts : JSON.stringify(dataSummaryForPrompts, null, 2)}
 
-      Conversation History (most recent user message is last):
+      Historia Rozmowy (ostatnia wiadomość użytkownika jest na końcu):
       ${formattedHistory.map(m => `${m.role}: ${m.parts.map(p => p.text).join(' ')}`).join('\n')}
 
-      Your Response:
-      Based on the user's latest message ("${userMessageText}") and the conversation history, provide your response.
-      Format your response as a JSON object with the following exact keys:
-      - "conciseChatMessage": (String) A brief, direct answer to the user's question, suitable for display in a chat UI. This should be plain text.
-      - "detailedAnalysisBlock": (Object) A structured block for the main display area, with these keys:
-          - "questionAsked": (String) The user's question you are responding to (i.e., "${userMessageText}"). This should be plain text.
-          - "detailedFindings": (String) Your detailed findings, explanations, or analysis related to the question. This string should be formatted with HTML tags for paragraphs (e.g., "<p>Finding 1.</p><p>Finding 2.</p>").
-          - "specificThoughtProcess": (String) Briefly explain how you arrived at these detailedFindings, referencing the data summary or previous parts of the conversation if relevant. This string should be formatted as an HTML unordered list (<ul><li>Item 1</li><li>Item 2</li><li>Item 3</li></ul>) containing exactly 3 bullet points.
-          - "followUpSuggestions": (Array of strings) Provide 2-3 insightful plain text follow-up questions the user could ask next. Each string in the array should be a simple textual question without any HTML markup.
+      Twoja Odpowiedź:
+      Na podstawie ostatniej wiadomości użytkownika ("${userMessageText}") i historii rozmowy, udziel odpowiedzi.
+      Sformatuj swoją odpowiedź jako obiekt JSON z następującymi dokładnymi kluczami:
+      - "conciseChatMessage": (String) Krótka, bezpośrednia odpowiedź na pytanie użytkownika, odpowiednia do wyświetlenia w interfejsie czatu. Powinien to być zwykły tekst.
+      - "detailedAnalysisBlock": (Object) Strukturalny blok dla głównego obszaru wyświetlania, z tymi kluczami:
+          - "questionAsked": (String) Pytanie użytkownika, na które odpowiadasz (tj. "${userMessageText}"). Powinien to być zwykły tekst.
+          - "detailedFindings": (String) Twoje szczegółowe ustalenia, wyjaśnienia lub analizy związane z pytaniem. Ten ciąg znaków powinien być sformatowany za pomocą tagów HTML dla akapitów (np. "<p>Ustalenie 1.</p><p>Ustalenie 2.</p>"). Kiedy odnosisz się do nazw kolumn z podsumowania danych (np. OperatorWorkload_%, TasksCompleted), NIE używaj odwrotnych apostrofów. Zamiast tego, otocz dokładną nazwę kolumny tagiem <span class="column-name-highlight"></span>. Na przykład, jeśli odnosisz się do 'OperatorWorkload_%', zapisz to jako <span class="column-name-highlight">OperatorWorkload_%</span>. WAŻNE: Cała wartość ciągu znaków dla "detailedFindings" musi być prawidłowym ciągiem JSON. Oznacza to, że wszelkie cudzysłowy (") będące częścią treści tekstowej lub atrybutów w HTML (w tym atrybutu class w tagu span) MUSZĄ być poprzedzone znakiem ucieczki jako \\".
+          - "specificThoughtProcess": (String) Krótko wyjaśnij, jak doszedłeś do tych szczegółowych ustaleń, odwołując się do podsumowania danych lub poprzednich części rozmowy, jeśli to istotne. Ten ciąg znaków powinien być sformatowany jako nieuporządkowana lista HTML (np. "<ul><li>Krok pierwszy wyjaśniający \\"dlaczego\\".</li><li>Krok drugi.</li><li>Krok trzeci.</li></ul>") zawierająca dokładnie 3 punkty. Kiedy odnosisz się do nazw kolumn, NIE używaj odwrotnych apostrofów. Zamiast tego, otocz dokładną nazwę kolumny tagiem <span class="column-name-highlight"></span>, jak opisano powyżej. WAŻNE: Cała wartość ciągu znaków dla "specificThoughtProcess" musi być prawidłowym ciągiem JSON. Oznacza to, że wszelkie cudzysłowy (") będące częścią treści tekstowej lub atrybutów w elementach listy HTML (w tym atrybutu class w tagu span) MUSZĄ być poprzedzone znakiem ucieczki jako \\".
+          - "followUpSuggestions": (Array of strings) Podaj 2-3 wnikliwe pytania uzupełniające (w formie zwykłego tekstu), które użytkownik mógłby zadać następnie. Każdy ciąg znaków w tablicy powinien być prostym pytaniem tekstowym bez żadnych znaczników HTML. NIE używaj odwrotnych apostrofów ani tagów span HTML dla nazw kolumn w tych sugestiach; używaj po prostu zwykłej nazwy kolumny.
 
-      Interaction Style: Be analytical, insightful, and directly answer the user's question.
+      Styl Interakcji: Bądź analityczny, wnikliwy i bezpośrednio odpowiadaj na pytanie użytkownika.
     `;
 
     console.log(`Calling Gemini for chat response on topic: ${topicDisplayName}`);
