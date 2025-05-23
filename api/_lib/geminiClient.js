@@ -33,7 +33,6 @@ async function generateContent(
     throw new Error('Failed to load HarmCategory/HarmBlockThreshold from @google/genai module.');
   }
 
-  // CORRECTED: Initialize GoogleGenAI with an options object { apiKey: ... }
   const genAI = GEMINI_API_KEY ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) : null;
 
   if (!genAI) {
@@ -54,10 +53,6 @@ async function generateContent(
     { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
     { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
   ];
-  // Note: The README uses strings like 'HARM_CATEGORY_HARASSMENT'. 
-  // Using the SDK's enum (HarmCategory.HARM_CATEGORY_HARASSMENT) is generally safer if available and correctly imported.
-  // If string values are strictly required by the SDK version as per README, this part might need adjustment.
-  // For now, assuming SDK enums are preferred.
 
   try {
     const finalSafetySettings = (Array.isArray(safetySettingsOverrides) && safetySettingsOverrides.length > 0)
@@ -87,21 +82,26 @@ async function generateContent(
       safetySettings: finalSafetySettings,
     });
     
-    // The README's "Response Handling" section shows:
-    // const response = await ai.models.generateContent(...)
-    // console.log(response.response.text());
-    // This implies the object returned by generateContent() has a 'response' property.
-    const geminiApiResponse = result.response;
+    // +++ ADDED LOGGING +++
+    console.log("Full result from genAI.models.generateContent:", JSON.stringify(result, null, 2));
+    // +++ END ADDED LOGGING +++
 
-    if (!geminiApiResponse || !geminiApiResponse.candidates || geminiApiResponse.candidates.length === 0) {
-      console.warn('Gemini API returned no candidates or an empty response.', geminiApiResponse);
-      if (geminiApiResponse && geminiApiResponse.promptFeedback && geminiApiResponse.promptFeedback.blockReason) {
-        throw new Error(`Content generation blocked. Reason: ${geminiApiResponse.promptFeedback.blockReason}. Details: ${geminiApiResponse.promptFeedback.blockReasonMessage || 'No additional details.'}`);
+    // Determine the actual response object that contains candidates and promptFeedback
+    // Based on README, it should be result.response.
+    // If result.response is undefined, let's check if 'result' itself has these properties.
+    const apiResponseObject = result.response || result;
+
+
+    if (!apiResponseObject || !apiResponseObject.candidates || apiResponseObject.candidates.length === 0) {
+      console.warn('Gemini API returned no candidates or an empty response. API Response Object:', JSON.stringify(apiResponseObject, null, 2));
+      // Check for blocking reason on the determined API response object
+      if (apiResponseObject && apiResponseObject.promptFeedback && apiResponseObject.promptFeedback.blockReason) {
+        throw new Error(`Content generation blocked. Reason: ${apiResponseObject.promptFeedback.blockReason}. Details: ${apiResponseObject.promptFeedback.blockReasonMessage || 'No additional details.'}`);
       }
       throw new Error('Gemini API returned no candidates or an empty response.');
     }
     
-    const candidate = geminiApiResponse.candidates[0];
+    const candidate = apiResponseObject.candidates[0];
 
     if (candidate.finishReason && candidate.finishReason !== 'STOP') {
         let message = `Content generation finished with reason: ${candidate.finishReason}.`;
@@ -123,18 +123,17 @@ async function generateContent(
 
     const responsePart = candidate.content.parts[0];
 
-    // Accessing text: README shows response.response.text() as a method.
-    // If responsePart.text is directly the string, this is fine.
-    // If response.response.text() is the correct way, adjust here.
-    // For now, assuming responsePart.text is the final text.
     let textOutput = '';
-    if (typeof responsePart.text === 'string') {
+    // Try to access text using candidate.content.parts[0].text first
+    if (responsePart && typeof responsePart.text === 'string') {
         textOutput = responsePart.text;
-    } else if (typeof geminiApiResponse.text === 'function') { 
-        // Fallback to response.text() if parts[0].text isn't directly the string
-        textOutput = geminiApiResponse.text();
+    } 
+    // Fallback: The README shows response.response.text()
+    // So, if apiResponseObject is what result.response was, then apiResponseObject.text()
+    else if (apiResponseObject && typeof apiResponseObject.text === 'function') { 
+        textOutput = apiResponseObject.text();
     } else {
-        console.warn("Could not directly extract text from response part or response.text(). Response structure:", geminiApiResponse);
+        console.warn("Could not directly extract text from response part or response.text(). Response structure:", JSON.stringify(apiResponseObject, null, 2));
         throw new Error("Could not extract text from Gemini response.");
     }
 
