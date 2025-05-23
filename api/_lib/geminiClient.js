@@ -14,6 +14,26 @@ const defaultGenerationConfig = {
   maxOutputTokens: 2048,
 };
 
+/**
+ * Cleans a string that might be wrapped in Markdown code fences (```json ... ``` or ``` ... ```).
+ * @param {string} text - The text to clean.
+ * @returns {string} The cleaned text, hopefully a valid JSON string.
+ */
+function cleanPotentialJsonMarkdown(text) {
+  if (typeof text !== 'string') {
+    return text; // Should not happen if logic before this is correct
+  }
+  let cleanedText = text.trim();
+  // Regex to match ```json ... ``` or ``` ... ```
+  const markdownRegex = /^```(?:json)?\s*([\s\S]*?)\s*```$/;
+  const match = cleanedText.match(markdownRegex);
+  if (match && match[1]) {
+    cleanedText = match[1].trim();
+  }
+  return cleanedText;
+}
+
+
 async function generateContent(
   modelName,
   promptParts,
@@ -82,19 +102,12 @@ async function generateContent(
       safetySettings: finalSafetySettings,
     });
     
-    // +++ ADDED LOGGING +++
-    console.log("Full result from genAI.models.generateContent:", JSON.stringify(result, null, 2));
-    // +++ END ADDED LOGGING +++
+    // console.log("Full result from genAI.models.generateContent:", JSON.stringify(result, null, 2)); // Keep for debugging if needed
 
-    // Determine the actual response object that contains candidates and promptFeedback
-    // Based on README, it should be result.response.
-    // If result.response is undefined, let's check if 'result' itself has these properties.
     const apiResponseObject = result.response || result;
-
 
     if (!apiResponseObject || !apiResponseObject.candidates || apiResponseObject.candidates.length === 0) {
       console.warn('Gemini API returned no candidates or an empty response. API Response Object:', JSON.stringify(apiResponseObject, null, 2));
-      // Check for blocking reason on the determined API response object
       if (apiResponseObject && apiResponseObject.promptFeedback && apiResponseObject.promptFeedback.blockReason) {
         throw new Error(`Content generation blocked. Reason: ${apiResponseObject.promptFeedback.blockReason}. Details: ${apiResponseObject.promptFeedback.blockReasonMessage || 'No additional details.'}`);
       }
@@ -124,12 +137,9 @@ async function generateContent(
     const responsePart = candidate.content.parts[0];
 
     let textOutput = '';
-    // Try to access text using candidate.content.parts[0].text first
     if (responsePart && typeof responsePart.text === 'string') {
         textOutput = responsePart.text;
     } 
-    // Fallback: The README shows response.response.text()
-    // So, if apiResponseObject is what result.response was, then apiResponseObject.text()
     else if (apiResponseObject && typeof apiResponseObject.text === 'function') { 
         textOutput = apiResponseObject.text();
     } else {
@@ -137,14 +147,15 @@ async function generateContent(
         throw new Error("Could not extract text from Gemini response.");
     }
 
-
     if (generationConfigOverrides.responseMimeType === 'application/json') {
+      const cleanedText = cleanPotentialJsonMarkdown(textOutput); // Clean the text
       try {
-        return JSON.parse(textOutput);
+        return JSON.parse(cleanedText); // Parse the cleaned text
       } catch (e) {
-        console.error('Failed to parse Gemini JSON response:', e);
-        console.error('Raw Gemini response text for JSON request:', textOutput);
-        throw new Error(`Failed to parse expected JSON response from Gemini API. Raw text: "${textOutput.substring(0,100)}..."`);
+        console.error('Failed to parse Gemini JSON response after cleaning:', e);
+        console.error('Cleaned Gemini response text for JSON request:', cleanedText);
+        console.error('Original raw text was:', textOutput);
+        throw new Error(`Failed to parse expected JSON response from Gemini API. Cleaned text: "${cleanedText.substring(0,100)}..."`);
       }
     }
     return textOutput;
