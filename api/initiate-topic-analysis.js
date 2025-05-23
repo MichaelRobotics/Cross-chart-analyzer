@@ -1,6 +1,6 @@
 // api/initiate-topic-analysis.js
-import { admin, firestore } from '../_lib/firebaseAdmin'; // Firebase Admin SDK
-import { generateContent } from '../_lib/geminiClient';   // Gemini API client
+import { admin, firestore } from './_lib/firebaseAdmin'; // Firebase Admin SDK
+import { generateContent } from './_lib/geminiClient';   // Gemini API client
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
