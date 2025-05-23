@@ -1,87 +1,86 @@
 // api/_lib/geminiClient.js
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/genai';
+// Note: Top-level import for @google/genai is removed. It will be dynamically imported.
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 if (!GEMINI_API_KEY) {
   console.error('GEMINI_API_KEY environment variable is not set.');
-  // Consider throwing an error if the application cannot function without Gemini
+  // Consider the implications for your application if the key is missing.
 }
 
-const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
-
-// Default generation configuration.
-// Specific calls can override these.
+// Default generation configuration can remain top-level as it doesn't depend on the SDK import.
 const defaultGenerationConfig = {
   temperature: 0.7,
   topK: 1,
   topP: 1,
-  maxOutputTokens: 2048, // Default, can be overridden
+  maxOutputTokens: 2048,
 };
 
-// Default safety settings.
-const defaultSafetySettings = [
-  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-];
+// We will define defaultSafetySettings inside generateContent after HarmCategory/HarmBlockThreshold are imported.
 
 /**
- * Generates content using the Gemini API.
+ * Generates content using the Gemini API with the @google/genai SDK (dynamically imported).
  *
- * @param {string} modelName - The name of the Gemini model (e.g., 'gemini-1.5-flash-latest').
+ * @param {string} modelName - The name of the Gemini model.
  * @param {Array<object|string>|string} promptParts - The prompt or chat history.
  * @param {object} [generationConfigOverrides] - Overrides for generation config.
- * Example: { responseMimeType: 'application/json', maxOutputTokens: 4096 }
  * @param {Array<object>} [safetySettingsOverrides] - Full array to override safety settings.
- * @returns {Promise<object|string>} Parsed JSON object if 'application/json' was requested, otherwise text.
- * @throws {Error} If API call fails or API key is not set.
+ * @returns {Promise<object|string>} Parsed JSON object or text.
+ * @throws {Error} If API call fails, API key is not set, or dynamic import fails.
  */
 async function generateContent(
   modelName,
   promptParts,
   generationConfigOverrides = {},
-  safetySettingsOverrides = null // Pass a full array to override, or null/undefined to use defaults
+  safetySettingsOverrides = null
 ) {
+  // Dynamically import the @google/genai module
+  const genaiModule = await import('@google/genai');
+  const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = genaiModule;
+
+  // Initialize genAI instance now that GoogleGenerativeAI is available
+  const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
+
   if (!genAI) {
-    throw new Error('Gemini API client is not initialized. Check GEMINI_API_KEY.');
+    throw new Error('Gemini API client could not be initialized. Check GEMINI_API_KEY and ensure @google/genai loaded.');
   }
+
+  // Define default safety settings now that HarmCategory and HarmBlockThreshold are available
+  const currentDefaultSafetySettings = [
+    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+  ];
 
   try {
     const finalSafetySettings = (Array.isArray(safetySettingsOverrides) && safetySettingsOverrides.length > 0)
       ? safetySettingsOverrides
-      : defaultSafetySettings;
+      : currentDefaultSafetySettings; // Use dynamically defined defaults
 
-    // Merge default generation config with any overrides.
-    // With a newer SDK, responseMimeType should be a valid part of generationConfig.
     const finalGenerationConfig = {
-      ...defaultGenerationConfig,
-      ...generationConfigOverrides, // This will include responseMimeType if provided
+      ...defaultGenerationConfig, // Use top-level defaults
+      ...generationConfigOverrides,
     };
 
     const model = genAI.getGenerativeModel({
       model: modelName,
       safetySettings: finalSafetySettings,
-      generationConfig: finalGenerationConfig, // Pass the merged config here
+      generationConfig: finalGenerationConfig,
     });
 
-    let contentsPayload;
-    // Standardize promptParts to the 'contents' array structure
+    let contentsForApi;
     if (Array.isArray(promptParts) && promptParts.every(part => typeof part === 'object' && 'role' in part && 'parts' in part)) {
-      // Looks like chat history, pass as is
-      contentsPayload = promptParts;
+      contentsForApi = promptParts;
     } else if (typeof promptParts === 'string') {
-      // Single string prompt
-      contentsPayload = [{ role: "user", parts: [{ text: promptParts }] }];
+      contentsForApi = [{ role: "user", parts: [{ text: promptParts }] }];
     } else if (Array.isArray(promptParts) && promptParts.every(part => typeof part === 'object' && ('text' in part || 'inlineData' in part))) {
-      // Array of parts for a single turn (e.g., multimodal)
-      contentsPayload = [{ role: "user", parts: promptParts }];
+      contentsForApi = [{ role: "user", parts: promptParts }];
     } else {
-      throw new Error('Invalid promptParts format. Must be a string, chat history array, or parts array for a single turn.');
+      throw new Error('Invalid promptParts format. Must be a string, chat history array (Content[]), or parts array for a single turn.');
     }
     
-    const result = await model.generateContent({ contents: contentsPayload }); // Pass contents directly
+    const result = await model.generateContent({ contents: contentsForApi });
     const response = result.response;
 
     if (!response || !response.candidates || response.candidates.length === 0) {
@@ -94,21 +93,31 @@ async function generateContent(
     
     const candidate = response.candidates[0];
 
+    if (candidate.finishReason && candidate.finishReason !== 'STOP') {
+        let message = `Content generation finished with reason: ${candidate.finishReason}.`;
+        if (candidate.safetyRatings && candidate.safetyRatings.length > 0) {
+            const problematicRatings = candidate.safetyRatings.filter(r => r.blocked || r.probability === 'HIGH' || r.probability === 'MEDIUM');
+            if (problematicRatings.length > 0) {
+                message += ' Safety issues detected: ' + problematicRatings.map(r => `${r.category} was ${r.probability}`).join(', ');
+            }
+        }
+        if (candidate.finishReason !== 'MAX_TOKENS') {
+             console.warn(message);
+        }
+        if (candidate.finishReason === 'SAFETY') throw new Error(message);
+    }
+
     if (!candidate.content || !candidate.content.parts || candidate.content.parts.length === 0) {
-      if (candidate.finishReason === 'SAFETY' || candidate.finishReason === 'OTHER') {
-           let safetyMessage = `Content generation stopped due to ${candidate.finishReason}.`;
-           if (candidate.safetyRatings && candidate.safetyRatings.length > 0) {
-               safetyMessage += ' Safety ratings: ' + candidate.safetyRatings.map(r => `${r.category} was ${r.probability}`).join(', ');
-           }
-          throw new Error(safetyMessage);
-      }
-      throw new Error('Gemini API returned a candidate with no content parts.');
+      throw new Error('Gemini API returned a candidate with no content parts. Finish reason: ' + candidate.finishReason);
     }
 
     const responsePart = candidate.content.parts[0];
 
-    // Check the intended responseMimeType from the overrides to decide on parsing
     if (generationConfigOverrides.responseMimeType === 'application/json') {
+      if (typeof responsePart.text !== 'string') {
+        console.error('Gemini response part for JSON request is not text. Received:', responsePart);
+        throw new Error('Gemini response part for JSON request is not in the expected text format.');
+      }
       try {
         return JSON.parse(responsePart.text);
       } catch (e) {
@@ -121,9 +130,11 @@ async function generateContent(
 
   } catch (error) {
     console.error('Error calling Gemini API:', error);
-    // Log the full error object if it has more details, e.g. error.response or error.details
     if (error.message && error.message.includes("API key not valid")) {
         console.error("Please check if your GEMINI_API_KEY is correct and has the necessary permissions.");
+    }
+    if (error.constructor && error.constructor.name === 'GoogleGenerativeAIResponseError') {
+        console.error("Gemini API Response Error Details:", error.response);
     }
     throw error;
   }
