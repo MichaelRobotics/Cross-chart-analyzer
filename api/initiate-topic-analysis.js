@@ -68,7 +68,7 @@ export default async function handler(req, res) {
       Your First Response - Initial Analysis & Guidance:
       Provide your analysis formatted as a JSON object with the following exact keys:
       - "initialFindings": (String) Your key initial observations, insights, or hypotheses related to "${topicDisplayName}" based on the provided data summary. This string should be formatted with HTML tags for paragraphs (e.g., "<p>Insight 1.</p><p>Insight 2.</p>").
-      - "thoughtProcess": (String) Briefly explain the steps or reasoning you took to arrive at these initialFindings. Mention which parts of the data summary were most relevant. This string should be formatted with HTML tags, using paragraphs (<p>) or unordered lists (<ul><li>Item 1</li><li>Item 2</li></ul>) as appropriate to structure the explanation clearly.
+      - "thoughtProcess": (String) Briefly explain the steps or reasoning you took to arrive at these initialFindings. Mention which parts of the data summary were most relevant. This string should be formatted as an HTML unordered list (<ul><li>Item 1</li><li>Item 2</li><li>Item 3</li></ul>) containing exactly 3 bullet points.
       - "questionSuggestions": (Array of strings) Provide 3-5 insightful plain text follow-up questions the user could ask to delve deeper into "${topicDisplayName}" or explore related aspects. These questions should be actionable and based on your initial findings or the data's nature. Each string in the array should be a simple textual question without any HTML markup.
 
       Interaction Style: Be analytical, insightful, and proactive in suggesting next steps.

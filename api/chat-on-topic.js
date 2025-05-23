@@ -97,7 +97,7 @@ export default async function handler(req, res) {
       - "detailedAnalysisBlock": (Object) A structured block for the main display area, with these keys:
           - "questionAsked": (String) The user's question you are responding to (i.e., "${userMessageText}"). This should be plain text.
           - "detailedFindings": (String) Your detailed findings, explanations, or analysis related to the question. This string should be formatted with HTML tags for paragraphs (e.g., "<p>Finding 1.</p><p>Finding 2.</p>").
-          - "specificThoughtProcess": (String) Briefly explain how you arrived at these detailedFindings, referencing the data summary or previous parts of the conversation if relevant. This string should be formatted with HTML tags, using paragraphs (<p>) or unordered lists (<ul><li>Item 1</li><li>Item 2</li></ul>) as appropriate to structure the explanation clearly.
+          - "specificThoughtProcess": (String) Briefly explain how you arrived at these detailedFindings, referencing the data summary or previous parts of the conversation if relevant. This string should be formatted as an HTML unordered list (<ul><li>Item 1</li><li>Item 2</li><li>Item 3</li></ul>) containing exactly 3 bullet points.
           - "followUpSuggestions": (Array of strings) Provide 2-3 insightful plain text follow-up questions the user could ask next. Each string in the array should be a simple textual question without any HTML markup.
 
       Interaction Style: Be analytical, insightful, and directly answer the user's question.
