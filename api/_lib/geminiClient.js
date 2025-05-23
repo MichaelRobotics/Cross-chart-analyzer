@@ -54,24 +54,24 @@ async function generateContent(
 
   const genAI = GEMINI_API_KEY ? new GoogleGenAI(GEMINI_API_KEY) : null;
 
-  // +++ ADDED LOGGING +++
-  console.log("GEMINI_API_KEY is set:", !!GEMINI_API_KEY);
-  console.log("Type of genAI instance:", typeof genAI);
-  if (genAI) {
-    console.log("genAI instance:", JSON.stringify(genAI, null, 2)); // Might be a complex object
-    console.log("Is genAI.getGenerativeModel a function?", typeof genAI.getGenerativeModel);
-    console.log("Keys on genAI instance:", Object.keys(genAI));
-    // Attempt to log prototype chain methods if direct keys don't show it
-    if (Object.getPrototypeOf(genAI)) {
-        console.log("Methods on genAI prototype:", Object.getOwnPropertyNames(Object.getPrototypeOf(genAI)));
-    }
-  }
-  // +++ END ADDED LOGGING +++
+  // Logging for debugging the genAI instance (can be removed once stable)
+  // console.log("GEMINI_API_KEY is set:", !!GEMINI_API_KEY);
+  // console.log("Type of genAI instance:", typeof genAI);
+  // if (genAI) {
+  //   console.log("genAI instance (brief):", Object.keys(genAI)); // Log keys to keep it brief
+  //   console.log("Is genAI.getGenerativeModel a function?", typeof genAI.getGenerativeModel);
+  //   console.log("Is genAI.models.getGenerativeModel a function?", genAI.models ? typeof genAI.models.getGenerativeModel : "genAI.models is undefined");
+  // }
 
 
   if (!genAI) {
     throw new Error('Gemini API client could not be initialized. Check GEMINI_API_KEY.');
   }
+  if (!genAI.models || typeof genAI.models.getGenerativeModel !== 'function') {
+    console.error("genAI.models.getGenerativeModel is not a function. Available on genAI.models:", genAI.models ? Object.keys(genAI.models) : "genAI.models is undefined");
+    throw new Error('getGenerativeModel method not found on genAI.models. SDK structure might have changed.');
+  }
+
 
   // Define default safety settings now that HarmCategory and HarmBlockThreshold are available
   const currentDefaultSafetySettings = [
@@ -91,8 +91,8 @@ async function generateContent(
       ...generationConfigOverrides,
     };
 
-    // This is where the error occurs: genAI.getGenerativeModel is not a function
-    const model = genAI.getGenerativeModel({
+    // CORRECTED: Call getGenerativeModel on genAI.models
+    const model = genAI.models.getGenerativeModel({ // <<< MODIFIED LINE
       model: modelName,
       safetySettings: finalSafetySettings,
       generationConfig: finalGenerationConfig,
