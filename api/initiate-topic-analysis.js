@@ -81,7 +81,7 @@ export default async function handler(req, res) {
     let initialAnalysisResult;
     try {
       initialAnalysisResult = await generateContent(
-        'gemini-2.5-flash-latest', // MODIFIED MODEL NAME
+        'gemini-2.5-flash-preview-05-20', // MODIFIED MODEL NAME
         initialPrompt,
         {
           responseMimeType: 'application/json',

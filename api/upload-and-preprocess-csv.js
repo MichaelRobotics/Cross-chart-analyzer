@@ -171,7 +171,7 @@ export default async function handler(req, res) {
     let dataSummaryForPrompts;
     try {
       dataSummaryForPrompts = await generateContent(
-        'gemini-2.5-flash-latest', // MODEL NAME AS PER LATEST CONTEXT
+        'gemini-2.5-flash-preview-05-20', // MODEL NAME AS PER LATEST CONTEXT
         dataSummaryPrompt,
         { responseMimeType: 'application/json' } // Request JSON output
       );
@@ -198,7 +198,7 @@ export default async function handler(req, res) {
     let dataNatureDescription;
     try {
         dataNatureDescription = await generateContent(
-            'gemini-2.5-flash-latest', // MODEL NAME AS PER LATEST CONTEXT
+            'gemini-2.5-flash-preview-05-20', // MODEL NAME AS PER LATEST CONTEXT
             dataNaturePrompt
         );
     } catch(geminiError) {
