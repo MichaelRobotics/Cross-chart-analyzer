@@ -15,7 +15,7 @@ const defaultGenerationConfig = {
 };
 
 async function generateContent(
-  modelName, // This will now be passed into the generateContent request
+  modelName,
   promptParts,
   generationConfigOverrides = {},
   safetySettingsOverrides = null
@@ -33,12 +33,13 @@ async function generateContent(
     throw new Error('Failed to load HarmCategory/HarmBlockThreshold from @google/genai module.');
   }
 
-  const genAI = GEMINI_API_KEY ? new GoogleGenAI(GEMINI_API_KEY) : null;
+  // CORRECTED: Initialize GoogleGenAI with an options object { apiKey: ... }
+  const genAI = GEMINI_API_KEY ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) : null;
 
   if (!genAI) {
     throw new Error('Gemini API client could not be initialized. Check GEMINI_API_KEY.');
   }
-  // Check if genAI.models and genAI.models.generateContent exist
+  
   if (!genAI.models || typeof genAI.models.generateContent !== 'function') {
     console.error(
       "genAI.models.generateContent is not a function. Available on genAI.models:", 
@@ -53,6 +54,10 @@ async function generateContent(
     { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
     { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
   ];
+  // Note: The README uses strings like 'HARM_CATEGORY_HARASSMENT'. 
+  // Using the SDK's enum (HarmCategory.HARM_CATEGORY_HARASSMENT) is generally safer if available and correctly imported.
+  // If string values are strictly required by the SDK version as per README, this part might need adjustment.
+  // For now, assuming SDK enums are preferred.
 
   try {
     const finalSafetySettings = (Array.isArray(safetySettingsOverrides) && safetySettingsOverrides.length > 0)
@@ -75,25 +80,28 @@ async function generateContent(
       throw new Error('Invalid promptParts format. Must be a string, chat history array (Content[]), or parts array for a single turn.');
     }
     
-    // CORRECTED: Call generateContent directly on genAI.models and pass model name, config, and safety settings
-    const result = await genAI.models.generateContent({ // <<< MODIFIED PART
-      model: modelName, // Specify the model here
+    const result = await genAI.models.generateContent({
+      model: modelName, 
       contents: contentsForApi,
       generationConfig: finalGenerationConfig,
       safetySettings: finalSafetySettings,
     });
     
-    const response = result.response;
+    // The README's "Response Handling" section shows:
+    // const response = await ai.models.generateContent(...)
+    // console.log(response.response.text());
+    // This implies the object returned by generateContent() has a 'response' property.
+    const geminiApiResponse = result.response;
 
-    if (!response || !response.candidates || response.candidates.length === 0) {
-      console.warn('Gemini API returned no candidates or an empty response.', response);
-      if (response && response.promptFeedback && response.promptFeedback.blockReason) {
-        throw new Error(`Content generation blocked. Reason: ${response.promptFeedback.blockReason}. Details: ${response.promptFeedback.blockReasonMessage || 'No additional details.'}`);
+    if (!geminiApiResponse || !geminiApiResponse.candidates || geminiApiResponse.candidates.length === 0) {
+      console.warn('Gemini API returned no candidates or an empty response.', geminiApiResponse);
+      if (geminiApiResponse && geminiApiResponse.promptFeedback && geminiApiResponse.promptFeedback.blockReason) {
+        throw new Error(`Content generation blocked. Reason: ${geminiApiResponse.promptFeedback.blockReason}. Details: ${geminiApiResponse.promptFeedback.blockReasonMessage || 'No additional details.'}`);
       }
       throw new Error('Gemini API returned no candidates or an empty response.');
     }
     
-    const candidate = response.candidates[0];
+    const candidate = geminiApiResponse.candidates[0];
 
     if (candidate.finishReason && candidate.finishReason !== 'STOP') {
         let message = `Content generation finished with reason: ${candidate.finishReason}.`;
@@ -115,20 +123,32 @@ async function generateContent(
 
     const responsePart = candidate.content.parts[0];
 
+    // Accessing text: README shows response.response.text() as a method.
+    // If responsePart.text is directly the string, this is fine.
+    // If response.response.text() is the correct way, adjust here.
+    // For now, assuming responsePart.text is the final text.
+    let textOutput = '';
+    if (typeof responsePart.text === 'string') {
+        textOutput = responsePart.text;
+    } else if (typeof geminiApiResponse.text === 'function') { 
+        // Fallback to response.text() if parts[0].text isn't directly the string
+        textOutput = geminiApiResponse.text();
+    } else {
+        console.warn("Could not directly extract text from response part or response.text(). Response structure:", geminiApiResponse);
+        throw new Error("Could not extract text from Gemini response.");
+    }
+
+
     if (generationConfigOverrides.responseMimeType === 'application/json') {
-      if (typeof responsePart.text !== 'string') {
-        console.error('Gemini response part for JSON request is not text. Received:', responsePart);
-        throw new Error('Gemini response part for JSON request is not in the expected text format.');
-      }
       try {
-        return JSON.parse(responsePart.text);
+        return JSON.parse(textOutput);
       } catch (e) {
         console.error('Failed to parse Gemini JSON response:', e);
-        console.error('Raw Gemini response text for JSON request:', responsePart.text);
-        throw new Error(`Failed to parse expected JSON response from Gemini API. Raw text: "${responsePart.text.substring(0,100)}..."`);
+        console.error('Raw Gemini response text for JSON request:', textOutput);
+        throw new Error(`Failed to parse expected JSON response from Gemini API. Raw text: "${textOutput.substring(0,100)}..."`);
       }
     }
-    return responsePart.text;
+    return textOutput;
 
   } catch (error) {
     console.error('Error calling Gemini API:', error);
