@@ -1,5 +1,5 @@
 // api/analyses.js
-import { firestore } from '../_lib/firebaseAdmin'; // Firebase Admin SDK
+import { firestore } from './_lib/firebaseAdmin'; // Corrected path
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
