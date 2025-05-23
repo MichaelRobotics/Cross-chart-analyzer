@@ -1,6 +1,6 @@
 // api/chat-on-topic.js
-import { admin, firestore } from '../_lib/firebaseAdmin'; // Firebase Admin SDK
-import { generateContent } from '../_lib/geminiClient';   // Gemini API client
+import { admin, firestore } from './_lib/firebaseAdmin'; // Firebase Admin SDK
+import { generateContent } from './_lib/geminiClient';   // Gemini API client
 
 // Helper to format chat history for Gemini API
 // Gemini expects contents: [{role: "user", parts: [{text: ""}]}, {role: "model", parts: [{text: ""}]}]
