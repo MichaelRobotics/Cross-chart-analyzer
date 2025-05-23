@@ -209,3 +209,5 @@ const LandingPage = ({ onNavigateToDashboard }) => {
         </div>
     );
 };
+
+export default LandingPage;
