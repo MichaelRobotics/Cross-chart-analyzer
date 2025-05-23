@@ -1,6 +1,6 @@
 // api/initiate-topic-analysis.js
-import { admin, firestore } from './_lib/firebaseAdmin'; // Firebase Admin SDK
-import { generateContent } from './_lib/geminiClient';   // Gemini API client
+import { admin, firestore } from '../_lib/firebaseAdmin'; // Firebase Admin SDK
+import { generateContent } from '../_lib/geminiClient';   // Gemini API client
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -54,7 +54,6 @@ export default async function handler(req, res) {
     }, { merge: true }); // Merge true to avoid overwriting other fields if doc partially existed
 
     // 4. Construct the Initial Prompt for Gemini
-    // This should align with "AI Agent Specification" and "End-to-End Flow: Initial Topic Analysis"
     const initialPrompt = `
       You are an AI Data Analysis Agent.
       Your mission is to help me perform a cross-analysis and uncover valuable insights related to the topic: "${topicDisplayName}".
@@ -75,7 +74,6 @@ export default async function handler(req, res) {
       Now, please provide your initial analysis for "${topicDisplayName}" based on the dataset summary.
     `;
     
-    // Store the prompt for auditing/debugging (optional, but good practice)
     await topicDocRef.update({ initialPromptSent: initialPrompt });
 
     // 5. Call Gemini API, requesting JSON output
@@ -83,20 +81,10 @@ export default async function handler(req, res) {
     let initialAnalysisResult;
     try {
       initialAnalysisResult = await generateContent(
-        'gemini-1.5-flash-latest', // Or your preferred model
+        'gemini-2.5-flash-latest', // MODIFIED MODEL NAME
         initialPrompt,
         {
           responseMimeType: 'application/json',
-          // Optional: Define responseSchema if you want to be very strict.
-          // responseSchema: {
-          //   type: "OBJECT",
-          //   properties: {
-          //     initialFindings: { type: "STRING" },
-          //     thoughtProcess: { type: "STRING" },
-          //     questionSuggestions: { type: "ARRAY", items: { type: "STRING" } }
-          //   },
-          //   required: ["initialFindings", "thoughtProcess", "questionSuggestions"]
-          // }
         }
       );
     } catch (geminiError) {
@@ -121,21 +109,19 @@ export default async function handler(req, res) {
 
     // 7. Initialize chatHistory subcollection with the first "model" message
     const chatHistoryRef = topicDocRef.collection('chatHistory');
-    const firstMessageId = `initialMsg_${Date.now()}`; // Generate a unique ID for the first message
+    const firstMessageId = `initialMsg_${Date.now()}`;
     
     await chatHistoryRef.doc(firstMessageId).set({
       role: "model",
-      parts: [{ text: initialAnalysisResult.initialFindings }], // Use full findings as first chat message
+      parts: [{ text: initialAnalysisResult.initialFindings }],
       timestamp: timestamp,
-      detailedAnalysisBlock: initialAnalysisResult, // The full initial result serves as the detailed block for this first interaction
-      messageId: firstMessageId // Storing the ID within the document as well
+      detailedAnalysisBlock: initialAnalysisResult,
+      messageId: firstMessageId
     });
     console.log(`First chat message added for topic ${topicId}`);
 
-    // Update lastUpdatedAt for the parent analysis document
     await analysisDocRef.update({ lastUpdatedAt: timestamp });
 
-    // 8. Return success response with the initialAnalysisResult
     return res.status(200).json({
       success: true,
       data: initialAnalysisResult,

@@ -3,8 +3,8 @@ import { formidable } from 'formidable';
 import fs from 'fs/promises'; // For reading the temporary file
 import Papa from 'papaparse';
 import { v4 as uuidv4 } from 'uuid'; // For generating unique IDs
-import { admin, firestore, storage } from './_lib/firebaseAdmin'; // Firebase Admin SDK
-import { generateContent } from './_lib/geminiClient'; // Gemini API client
+import { admin, firestore, storage } from '../_lib/firebaseAdmin'; // Firebase Admin SDK
+import { generateContent } from '../_lib/geminiClient'; // Gemini API client
 
 // Vercel specific configuration for serverless functions to handle body parsing for multipart/form-data
 export const config = {
@@ -171,7 +171,7 @@ export default async function handler(req, res) {
     let dataSummaryForPrompts;
     try {
       dataSummaryForPrompts = await generateContent(
-        'gemini-1.5-flash-latest', // Or your preferred model
+        'gemini-2.5-flash-latest', // MODEL NAME AS PER LATEST CONTEXT
         dataSummaryPrompt,
         { responseMimeType: 'application/json' } // Request JSON output
       );
@@ -198,7 +198,7 @@ export default async function handler(req, res) {
     let dataNatureDescription;
     try {
         dataNatureDescription = await generateContent(
-            'gemini-1.5-flash-latest',
+            'gemini-2.5-flash-latest', // MODEL NAME AS PER LATEST CONTEXT
             dataNaturePrompt
         );
     } catch(geminiError) {

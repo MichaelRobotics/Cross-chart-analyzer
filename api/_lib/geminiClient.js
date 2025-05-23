@@ -1,26 +1,25 @@
 // api/_lib/geminiClient.js
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 
-// Get the Gemini API key from environment variables.
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 if (!GEMINI_API_KEY) {
   console.error('GEMINI_API_KEY environment variable is not set.');
-  // For this project, Gemini is crucial.
+  // Consider throwing an error if the application cannot function without Gemini
 }
 
-// Initialize the GoogleGenerativeAI instance with the API key.
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 
-// Define default generation configuration.
+// Default generation configuration.
+// Specific calls can override these.
 const defaultGenerationConfig = {
   temperature: 0.7,
   topK: 1,
   topP: 1,
-  maxOutputTokens: 2048, // Adjust as needed
+  maxOutputTokens: 2048, // Default, can be overridden
 };
 
-// Define default safety settings as an array.
+// Default safety settings.
 const defaultSafetySettings = [
   { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
   { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
@@ -30,53 +29,59 @@ const defaultSafetySettings = [
 
 /**
  * Generates content using the Gemini API.
+ *
+ * @param {string} modelName - The name of the Gemini model (e.g., 'gemini-1.5-flash-latest').
+ * @param {Array<object|string>|string} promptParts - The prompt or chat history.
+ * @param {object} [generationConfigOverrides] - Overrides for generation config.
+ * Example: { responseMimeType: 'application/json', maxOutputTokens: 4096 }
+ * @param {Array<object>} [safetySettingsOverrides] - Full array to override safety settings.
+ * @returns {Promise<object|string>} Parsed JSON object if 'application/json' was requested, otherwise text.
+ * @throws {Error} If API call fails or API key is not set.
  */
 async function generateContent(
   modelName,
   promptParts,
-  generationConfigOverrides = {}, // e.g., { responseMimeType: 'application/json' }
-  safetySettingsOverrides = null  // Expect a full array for override, or null/undefined to use default
+  generationConfigOverrides = {},
+  safetySettingsOverrides = null // Pass a full array to override, or null/undefined to use defaults
 ) {
   if (!genAI) {
     throw new Error('Gemini API client is not initialized. Check GEMINI_API_KEY.');
   }
 
   try {
-    // Determine final safety settings: use overrides if provided as a valid array, else use defaults.
     const finalSafetySettings = (Array.isArray(safetySettingsOverrides) && safetySettingsOverrides.length > 0)
       ? safetySettingsOverrides
       : defaultSafetySettings;
 
-    // Initialize the model. Pass basic generation config here if needed,
-    // but specific overrides like responseMimeType will be in the generateContent call.
+    // Merge default generation config with any overrides.
+    // With a newer SDK, responseMimeType should be a valid part of generationConfig.
+    const finalGenerationConfig = {
+      ...defaultGenerationConfig,
+      ...generationConfigOverrides, // This will include responseMimeType if provided
+    };
+
     const model = genAI.getGenerativeModel({
       model: modelName,
-      safetySettings: finalSafetySettings, // Pass the array directly
-      // generationConfig: defaultGenerationConfig // Pass only basic defaults here
+      safetySettings: finalSafetySettings,
+      generationConfig: finalGenerationConfig, // Pass the merged config here
     });
 
-    // Construct the request payload's `contents` part
     let contentsPayload;
+    // Standardize promptParts to the 'contents' array structure
     if (Array.isArray(promptParts) && promptParts.every(part => typeof part === 'object' && 'role' in part && 'parts' in part)) {
-      contentsPayload = promptParts; // Looks like chat history
+      // Looks like chat history, pass as is
+      contentsPayload = promptParts;
     } else if (typeof promptParts === 'string') {
-      contentsPayload = [{ role: "user", parts: [{ text: promptParts }] }]; // Simple text prompt
+      // Single string prompt
+      contentsPayload = [{ role: "user", parts: [{ text: promptParts }] }];
     } else if (Array.isArray(promptParts) && promptParts.every(part => typeof part === 'object' && ('text' in part || 'inlineData' in part))) {
-      contentsPayload = [{ role: "user", parts: promptParts }]; // Array of parts for a single turn
+      // Array of parts for a single turn (e.g., multimodal)
+      contentsPayload = [{ role: "user", parts: promptParts }];
     } else {
       throw new Error('Invalid promptParts format. Must be a string, chat history array, or parts array for a single turn.');
     }
-
-    // Prepare the full request for model.generateContent()
-    // This allows specifying generationConfig (with responseMimeType) per request.
-    const request = {
-      contents: contentsPayload,
-      generationConfig: { ...defaultGenerationConfig, ...generationConfigOverrides },
-      // Safety settings are already applied at model level, but can be overridden here too if needed:
-      // safetySettings: finalSafetySettings,
-    };
     
-    const result = await model.generateContent(request);
+    const result = await model.generateContent({ contents: contentsPayload }); // Pass contents directly
     const response = result.response;
 
     if (!response || !response.candidates || response.candidates.length === 0) {
@@ -91,7 +96,7 @@ async function generateContent(
 
     if (!candidate.content || !candidate.content.parts || candidate.content.parts.length === 0) {
       if (candidate.finishReason === 'SAFETY' || candidate.finishReason === 'OTHER') {
-           let safetyMessage = 'Content generation stopped.';
+           let safetyMessage = `Content generation stopped due to ${candidate.finishReason}.`;
            if (candidate.safetyRatings && candidate.safetyRatings.length > 0) {
                safetyMessage += ' Safety ratings: ' + candidate.safetyRatings.map(r => `${r.category} was ${r.probability}`).join(', ');
            }
@@ -102,19 +107,24 @@ async function generateContent(
 
     const responsePart = candidate.content.parts[0];
 
-    if (request.generationConfig.responseMimeType === 'application/json') {
+    // Check the intended responseMimeType from the overrides to decide on parsing
+    if (generationConfigOverrides.responseMimeType === 'application/json') {
       try {
         return JSON.parse(responsePart.text);
       } catch (e) {
         console.error('Failed to parse Gemini JSON response:', e);
-        console.error('Raw Gemini response text:', responsePart.text);
-        throw new Error('Failed to parse JSON response from Gemini API.');
+        console.error('Raw Gemini response text for JSON request:', responsePart.text);
+        throw new Error(`Failed to parse expected JSON response from Gemini API. Raw text: "${responsePart.text.substring(0,100)}..."`);
       }
     }
     return responsePart.text;
 
   } catch (error) {
     console.error('Error calling Gemini API:', error);
+    // Log the full error object if it has more details, e.g. error.response or error.details
+    if (error.message && error.message.includes("API key not valid")) {
+        console.error("Please check if your GEMINI_API_KEY is correct and has the necessary permissions.");
+    }
     throw error;
   }
 }
