@@ -1,6 +1,6 @@
 // api/initiate-topic-analysis.js
-import { admin, firestore } from './_lib/firebaseAdmin'; // Firebase Admin SDK
-import { generateContent } from './_lib/geminiClient';   // Gemini API client
+import { admin, firestore } from '../_lib/firebaseAdmin'; // Firebase Admin SDK
+import { generateContent } from '../_lib/geminiClient';   // Gemini API client
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -49,9 +49,9 @@ export default async function handler(req, res) {
     await topicDocRef.set({
       topicDisplayName: topicDisplayName,
       status: "analyzing",
-      createdAt: topicDoc.exists ? topicDoc.data().createdAt : timestamp, // Preserve original createdAt if doc existed partially
+      createdAt: topicDoc.exists ? topicDoc.data().createdAt : timestamp, 
       lastUpdatedAt: timestamp,
-    }, { merge: true }); // Merge true to avoid overwriting other fields if doc partially existed
+    }, { merge: true }); 
 
     // 4. Construct the Initial Prompt for Gemini
     const initialPrompt = `
@@ -65,11 +65,11 @@ export default async function handler(req, res) {
 
       Your First Response - Initial Analysis & Guidance:
       Provide your analysis formatted as a JSON object with the following exact keys:
-      - "initialFindings": (String) Your key initial observations, insights, or hypotheses related to "${topicDisplayName}" based on the provided data summary. This should be a comprehensive textual summary.
-      - "thoughtProcess": (String) Briefly explain the steps or reasoning you took to arrive at these initialFindings. Mention which parts of the data summary were most relevant.
-      - "questionSuggestions": (Array of strings) Provide 3-5 insightful follow-up questions the user could ask to delve deeper into "${topicDisplayName}" or explore related aspects. These questions should be actionable and based on your initial findings or the data's nature.
+      - "initialFindings": (String) Provide your key initial observations and insights related to "${topicDisplayName}" based on the provided data summary. Be concise: aim for 2-3 short paragraphs, each about 2-4 sentences long.
+      - "thoughtProcess": (String) Briefly explain the key steps (3-4 points) in your reasoning as a bulleted list (e.g., "- Analyzed X.\n- Compared Y and Z.\n- Concluded A.").
+      - "questionSuggestions": (Array of strings) Provide 2-3 concise and insightful follow-up questions the user could ask to delve deeper. Each question should be brief.
 
-      Interaction Style: Be analytical, insightful, and proactive in suggesting next steps.
+      Interaction Style: Be analytical, insightful, and proactive in suggesting next steps. Ensure all text is in Polish.
 
       Now, please provide your initial analysis for "${topicDisplayName}" based on the dataset summary.
     `;
@@ -77,11 +77,11 @@ export default async function handler(req, res) {
     await topicDocRef.update({ initialPromptSent: initialPrompt });
 
     // 5. Call Gemini API, requesting JSON output
-    console.log(`Calling Gemini for topic: ${topicDisplayName}`);
+    console.log(`Calling Gemini for topic: ${topicDisplayName} with model: gemini-2.5-flash-preview-05-20`);
     let initialAnalysisResult;
     try {
       initialAnalysisResult = await generateContent(
-        'gemini-2.5-flash-preview-05-20', // MODIFIED MODEL NAME
+        'gemini-2.5-flash-preview-05-20', 
         initialPrompt,
         {
           responseMimeType: 'application/json',
@@ -113,7 +113,7 @@ export default async function handler(req, res) {
     
     await chatHistoryRef.doc(firstMessageId).set({
       role: "model",
-      parts: [{ text: initialAnalysisResult.initialFindings }],
+      parts: [{ text: initialAnalysisResult.initialFindings }], 
       timestamp: timestamp,
       detailedAnalysisBlock: initialAnalysisResult,
       messageId: firstMessageId
