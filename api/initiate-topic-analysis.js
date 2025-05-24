@@ -117,7 +117,7 @@ export default async function handler(req, res) {
     
     await chatHistoryRef.doc(firstMessageId).set({
       role: "model",
-      parts: [{ text: initialAnalysisResult.initialFindings }], // Storing HTML here, as per prompt
+      parts: [{ text: "Witaj! Jestem Agentem AI do analizy danych. Jak mogę pomóc Ci dzisiaj?" }], // Storing HTML here, as per prompt
       timestamp: finalTimestamp, // Use the same timestamp for consistency
       detailedAnalysisBlock: initialAnalysisResult, // Contains HTML formatted strings
       messageId: firstMessageId // Store the ID within the document as well
