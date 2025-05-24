@@ -237,7 +237,7 @@ export default async function handler(req, res) {
         console.log(`Dataset (${rowCount}x${columnCount}) is too large for storing full cleanedData in Firestore field.`);
         analysisDocData.smallDatasetRawData = null;
     }
-
+    console.log(tempStringified.length);
     const analysisDocRef = firestore.collection('analyses').doc(analysisId);
     await analysisDocRef.set(analysisDocData);
     console.log(`Analysis record created in Firestore for ID: ${analysisId}`);
