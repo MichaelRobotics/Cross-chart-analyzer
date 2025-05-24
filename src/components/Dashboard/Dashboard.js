@@ -105,7 +105,7 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
         } else if (isInitialSetup && initialBlockData) {
              newChatMessages.push({
                 sender: 'ai',
-                text: "Witaj! Jestem Agentem AI do analizy danych. Jak mogę pomóc Ci dzisiaj?" || "Rozpoczęto analizę.", // This might be HTML
+                text: initialBlockData.initialFindings || "Rozpoczęto analizę.", // This might be HTML
                 id: `msg-initial-${Date.now()}`
             });
         }

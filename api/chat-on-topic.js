@@ -7,12 +7,11 @@ function formatChatHistoryForGemini(chatHistoryDocs) {
   if (!chatHistoryDocs || chatHistoryDocs.length === 0) {
     return [];
   }
-  // Pass the parts array directly. If 'model' role parts contain HTML, Gemini gets it as context.
   return chatHistoryDocs.map(doc => {
     const data = doc.data();
     return {
       role: data.role,
-      parts: data.parts, // parts is expected to be an array, e.g., [{text: "..."}]
+      parts: data.parts, 
     };
   });
 }
@@ -26,7 +25,6 @@ export default async function handler(req, res) {
   try {
     const { analysisId, topicId, userMessageText } = req.body;
 
-    // Input validation
     if (!analysisId || !topicId || !userMessageText) {
       return res.status(400).json({ success: false, message: 'Missing required fields: analysisId, topicId, or userMessageText.' });
     }
@@ -35,7 +33,6 @@ export default async function handler(req, res) {
     }
     console.log(`Chat message received for analysisId: ${analysisId}, topicId: ${topicId}`);
 
-    // Fetch parent analysis document for context
     const analysisDocRef = firestore.collection('analyses').doc(analysisId);
     const analysisDoc = await analysisDocRef.get();
 
@@ -43,13 +40,13 @@ export default async function handler(req, res) {
       return res.status(404).json({ success: false, message: `Analysis with ID ${analysisId} not found.` });
     }
     const analysisData = analysisDoc.data();
-    const { dataSummaryForPrompts, dataNatureDescription, analysisName } = analysisData;
+    const { dataSummaryForPrompts, dataNatureDescription, analysisName, smallDatasetRawData = null } = analysisData;
+
 
     if (!dataSummaryForPrompts || !dataNatureDescription) {
       return res.status(400).json({ success: false, message: 'Analysis document is missing dataSummaryForPrompts or dataNatureDescription.' });
     }
 
-    // Fetch topic document for context
     const topicDocRef = firestore.collection('analyses').doc(analysisId).collection('topics').doc(topicId);
     const topicDoc = await topicDocRef.get();
     if (!topicDoc.exists) {
@@ -57,48 +54,67 @@ export default async function handler(req, res) {
     }
     const topicDisplayName = topicDoc.data().topicDisplayName || "current topic";
 
-    // Define chat history reference
     const chatHistoryRef = topicDocRef.collection('chatHistory');
     
-    // Store user's message in Firestore first
     const userTimestamp = admin.firestore.FieldValue.serverTimestamp();
-    const userMessageId = `userMsg_${Date.now()}`; // Unique ID for the user message
+    const userMessageId = `userMsg_${Date.now()}`; 
     const userMessageData = {
       role: "user",
-      parts: [{ text: userMessageText }], // User message is plain text
+      parts: [{ text: userMessageText }], 
       timestamp: userTimestamp,
-      messageId: userMessageId, // Store the ID within the document
+      messageId: userMessageId, 
     };
     await chatHistoryRef.doc(userMessageId).set(userMessageData);
     console.log(`User message stored for topic ${topicId}, ID: ${userMessageId}`);
 
-    // Fetch chat history *after* storing the new user message to include it in the prompt
     const chatHistorySnapshot = await chatHistoryRef.orderBy('timestamp', 'asc').get();
     const existingChatHistoryDocs = chatHistorySnapshot.docs;
     const formattedHistory = formatChatHistoryForGemini(existingChatHistoryDocs);
-    // The last message in formattedHistory is the current user's message.
 
-    // Construct the prompt for Gemini
+    // Determine if we use full data or just summary for data context in chat
+    let dataContextForChatPrompt;
+    if (smallDatasetRawData && Array.isArray(smallDatasetRawData) && smallDatasetRawData.length > 0) {
+        const dataForPrompt = smallDatasetRawData.map(row => 
+            Object.fromEntries(
+                Object.entries(row).map(([key, value]) => [key, String(value).slice(0, 150)])
+            )
+        );
+        dataContextForChatPrompt = `
+Pełne dane (lub reprezentatywna próbka) dla tej analizy (format JSON):
+${JSON.stringify(dataForPrompt, null, 2)}
+
+Dodatkowo, podsumowanie statystyczne kolumn (zawierające także spostrzeżenia dotyczące wierszy z próbki i obserwacje ogólne):
+${JSON.stringify(dataSummaryForPrompts, null, 2)}
+`;
+        console.log(`Using full small dataset (${smallDatasetRawData.length} rows) and extended summary in prompt for chat.`);
+    } else {
+        dataContextForChatPrompt = `
+Podsumowanie statystyczne kolumn (zawierające także spostrzeżenia dotyczące wierszy z próbki i obserwacje ogólne):
+${JSON.stringify(dataSummaryForPrompts, null, 2)}
+`;
+        console.log(`Using extended data summary (with row insights) in prompt for chat.`);
+    }
+
     const chatPrompt = `
       Jesteś Agentem AI do Analizy Danych. Kontynuuj rozmowę na podstawie dostarczonej historii.
       Ogólna analiza nosi nazwę "${analysisName || 'N/A'}", a bieżący temat dyskusji to "${topicDisplayName}".
       Dane, które analizujesz, dotyczą przede wszystkim: "${dataNatureDescription}".
       
-      Podsumowanie Danych (dla kontekstu, nie powtarzaj tego podsumowania w odpowiedzi, chyba że zostaniesz o to wyraźnie poproszony):
-      ${typeof dataSummaryForPrompts === 'string' ? dataSummaryForPrompts : JSON.stringify(dataSummaryForPrompts, null, 2)}
+      O Twoich Danych (kontekst zawiera podsumowanie kolumn, spostrzeżenia o wierszach z próbki, a czasem pełne dane jeśli zbiór jest mały):
+      ${dataContextForChatPrompt}
 
       Historia Rozmowy (ostatnia wiadomość użytkownika jest na końcu):
       ${formattedHistory.map(m => `${m.role}: ${m.parts.map(p => p.text).join(' ')}`).join('\n')}
 
       Twoja Odpowiedź:
-      Na podstawie ostatniej wiadomości użytkownika ("${userMessageText}") i historii rozmowy, udziel odpowiedzi.
+      Na podstawie ostatniej wiadomości użytkownika ("${userMessageText}") i historii rozmowy (oraz dostarczonych danych, w tym pełnych danych lub 'rowInsights' jeśli dostępne), udziel odpowiedzi. Odnoś się do konkretnych wartości w komórkach [wiersz, kolumna], jeśli to istotne i dane na to pozwalają.
       Sformatuj swoją odpowiedź jako obiekt JSON z następującymi dokładnymi kluczami:
       - "conciseChatMessage": (String) Krótka, bezpośrednia odpowiedź na pytanie użytkownika, odpowiednia do wyświetlenia w interfejsie czatu. Powinien to być zwykły tekst.
       - "detailedAnalysisBlock": (Object) Strukturalny blok dla głównego obszaru wyświetlania, z tymi kluczami:
           - "questionAsked": (String) Pytanie użytkownika, na które odpowiadasz (tj. "${userMessageText}"). Powinien to być zwykły tekst.
-          - "detailedFindings": (String) Twoje szczegółowe ustalenia, wyjaśnienia lub analizy związane z pytaniem. Ten ciąg znaków powinien być sformatowany za pomocą tagów HTML dla akapitów (np. "<p>Ustalenie 1.</p><p>Ustalenie 2.</p>"). Kiedy odnosisz się do nazw kolumn z podsumowania danych (np. OperatorWorkload_%, TasksCompleted), NIE używaj odwrotnych apostrofów. Zamiast tego, otocz dokładną nazwę kolumny tagiem <span class="column-name-highlight"></span>. Na przykład, jeśli odnosisz się do 'OperatorWorkload_%', zapisz to jako <span class="column-name-highlight">OperatorWorkload_%</span>. WAŻNE: Cała wartość ciągu znaków dla "detailedFindings" musi być prawidłowym ciągiem JSON. Oznacza to, że wszelkie cudzysłowy (") będące częścią treści tekstowej lub atrybutów w HTML (w tym atrybutu class w tagu span) MUSZĄ być poprzedzone znakiem ucieczki jako \\".
-          - "specificThoughtProcess": (String) Krótko wyjaśnij, jak doszedłeś do tych szczegółowych ustaleń, odwołując się do podsumowania danych lub poprzednich części rozmowy, jeśli to istotne. Ten ciąg znaków powinien być sformatowany jako nieuporządkowana lista HTML (np. "<ul><li>Krok pierwszy wyjaśniający \\"dlaczego\\".</li><li>Krok drugi.</li><li>Krok trzeci.</li></ul>") zawierająca dokładnie 3 punkty. Kiedy odnosisz się do nazw kolumn, NIE używaj odwrotnych apostrofów. Zamiast tego, otocz dokładną nazwę kolumny tagiem <span class="column-name-highlight"></span>, jak opisano powyżej. WAŻNE: Cała wartość ciągu znaków dla "specificThoughtProcess" musi być prawidłowym ciągiem JSON. Oznacza to, że wszelkie cudzysłowy (") będące częścią treści tekstowej lub atrybutów w elementach listy HTML (w tym atrybutu class w tagu span) MUSZĄ być poprzedzone znakiem ucieczki jako \\".
-          - "followUpSuggestions": (Array of strings) Podaj 2-3 wnikliwe pytania uzupełniające (w formie zwykłego tekstu), które użytkownik mógłby zadać następnie. Każdy ciąg znaków w tablicy powinien być prostym pytaniem tekstowym bez żadnych znaczników HTML. NIE używaj odwrotnych apostrofów ani tagów span HTML dla nazw kolumn w tych sugestiach; używaj po prostu zwykłej nazwy kolumny.
+          - "detailedFindings": (String) Twoje szczegółowe ustalenia, wyjaśnienia lub analizy związane z pytaniem. Ten ciąg znaków powinien być sformatowany za pomocą tagów HTML dla akapitów (np. "<p>Ustalenie 1.</p><p>Ustalenie 2.</p>"). Kiedy odnosisz się do nazw kolumn (np. OperatorWorkload_%, TasksCompleted), NIE używaj odwrotnych apostrofów. Zamiast tego, otocz dokładną nazwę kolumny tagiem <span class="column-name-highlight"></span>. WAŻNE: Cała wartość ciągu znaków dla "detailedFindings" musi być prawidłowym ciągiem JSON. Wszelkie cudzysłowy (") w treści lub atrybutach HTML MUSZĄ być poprzedzone znakiem ucieczki jako \\".
+          - "specificThoughtProcess": (String) Krótko wyjaśnij, jak doszedłeś do tych szczegółowych ustaleń. Ten ciąg znaków powinien być sformatowany jako nieuporządkowana lista HTML (np. "<ul><li>Krok pierwszy wyjaśniający \\"dlaczego\\".</li><li>Krok drugi.</li><li>Krok trzeci.</li></ul>") zawierająca dokładnie 3 punkty. Kiedy odnosisz się do nazw kolumn, użyj tagu <span class="column-name-highlight"></span>. WAŻNE: Cała wartość ciągu znaków dla "specificThoughtProcess" musi być prawidłowym ciągiem JSON. Wszelkie cudzysłowy (") w treści lub atrybutach HTML MUSZĄ być poprzedzone znakiem ucieczki jako \\".
+          - "followUpSuggestions": (Array of strings) Podaj 2-3 wnikliwe pytania uzupełniające (zwykły tekst). NIE używaj odwrotnych apostrofów ani tagów span HTML dla nazw kolumn w tych sugestiach.
 
       Styl Interakcji: Bądź analityczny, wnikliwy i bezpośrednio odpowiadaj na pytanie użytkownika.
     `;
@@ -115,11 +131,9 @@ export default async function handler(req, res) {
       );
     } catch (geminiError) {
       console.error(`Gemini API error during chat for topic ${topicId}:`, geminiError);
-      // Optionally, store an error message in chat history or update topic status
       return res.status(500).json({ success: false, message: `Failed to get AI response: ${geminiError.message}` });
     }
     
-    // Validate Gemini response structure
     if (!geminiResponsePayload || 
         !geminiResponsePayload.conciseChatMessage || 
         !geminiResponsePayload.detailedAnalysisBlock ||
@@ -131,33 +145,30 @@ export default async function handler(req, res) {
     }
     console.log(`Gemini chat response received for topic ${topicId}`);
 
-    // Store model's (AI) response in Firestore
     const modelTimestamp = admin.firestore.FieldValue.serverTimestamp();
-    const modelMessageId = `modelMsg_${Date.now()}`; // Unique ID for the model message
+    const modelMessageId = `modelMsg_${Date.now()}`; 
     const modelMessageData = {
       role: "model",
-      parts: [{ text: geminiResponsePayload.conciseChatMessage }], // Plain text for chat UI
+      parts: [{ text: geminiResponsePayload.conciseChatMessage }], 
       timestamp: modelTimestamp,
-      detailedAnalysisBlock: geminiResponsePayload.detailedAnalysisBlock, // Contains HTML formatted strings
-      messageId: modelMessageId, // Store the ID within the document
+      detailedAnalysisBlock: geminiResponsePayload.detailedAnalysisBlock, 
+      messageId: modelMessageId, 
     };
     await chatHistoryRef.doc(modelMessageId).set(modelMessageData);
     console.log(`Model (AI) response stored for topic ${topicId}, ID: ${modelMessageId}`);
 
-    // Update lastUpdatedAt for topic and parent analysis documents
     await topicDocRef.update({ lastUpdatedAt: modelTimestamp });
     await analysisDocRef.update({ lastUpdatedAt: modelTimestamp });
 
-    // Return success response to frontend
     return res.status(200).json({
       success: true,
-      chatMessage: { // This is for the frontend's chat message list
+      chatMessage: { 
         role: "model",
-        parts: [{ text: geminiResponsePayload.conciseChatMessage }], // Plain text
-        timestamp: new Date().toISOString(), // Frontend expects ISO string for immediate display
+        parts: [{ text: geminiResponsePayload.conciseChatMessage }], 
+        timestamp: new Date().toISOString(), 
         messageId: modelMessageId,
       },
-      detailedBlock: geminiResponsePayload.detailedAnalysisBlock, // Contains HTML
+      detailedBlock: geminiResponsePayload.detailedAnalysisBlock, 
       message: "AI response generated successfully."
     });
 
