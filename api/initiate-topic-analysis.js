@@ -27,7 +27,9 @@ export default async function handler(req, res) {
       return res.status(404).json({ success: false, message: `Analysis with ID ${analysisId} not found.` });
     }
     const analysisData = analysisDoc.data();
-    const { dataSummaryForPrompts, dataNatureDescription } = analysisData;
+    // Destructure with a fallback for smallDatasetRawData
+    const { dataSummaryForPrompts, dataNatureDescription, smallDatasetRawData = null } = analysisData;
+
 
     if (!dataSummaryForPrompts || !dataNatureDescription) {
       return res.status(400).json({ success: false, message: 'Analysis document is missing dataSummaryForPrompts or dataNatureDescription.' });
@@ -55,6 +57,30 @@ export default async function handler(req, res) {
       lastUpdatedAt: initialTimestamp,
     }, { merge: true });
 
+    // Determine if we use full data or just summary for the main data context
+    let dataContextForPrompt;
+    if (smallDatasetRawData && Array.isArray(smallDatasetRawData) && smallDatasetRawData.length > 0) {
+        const dataForPrompt = smallDatasetRawData.map(row => 
+            Object.fromEntries(
+                Object.entries(row).map(([key, value]) => [key, String(value).slice(0, 150)]) // Truncate long cell values
+            )
+        );
+        dataContextForPrompt = `
+Pełne dane (lub reprezentatywna próbka) dla tej analizy (format JSON):
+${JSON.stringify(dataForPrompt, null, 2)}
+
+Dodatkowo, podsumowanie statystyczne kolumn (zawierające także spostrzeżenia dotyczące wierszy z próbki i obserwacje ogólne):
+${JSON.stringify(dataSummaryForPrompts, null, 2)}
+`;
+        console.log(`Using full small dataset (${smallDatasetRawData.length} rows) and extended summary in prompt for initial analysis.`);
+    } else {
+        dataContextForPrompt = `
+Podsumowanie statystyczne kolumn (zawierające także spostrzeżenia dotyczące wierszy z próbki i obserwacje ogólne):
+${JSON.stringify(dataSummaryForPrompts, null, 2)}
+`;
+        console.log(`Using extended data summary (with row insights) in prompt for initial analysis.`);
+    }
+
     // 4. Construct the Initial Prompt for Gemini
     const initialPrompt = `
       Jesteś Agentem AI do Analizy Danych.
@@ -62,23 +88,22 @@ export default async function handler(req, res) {
       Dane, które analizujesz, dotyczą przede wszystkim: "${dataNatureDescription}".
       Skup swoją analizę tematu "${topicDisplayName}" przez ten pryzmat, biorąc pod uwagę ogólną naturę zbioru danych.
       
-      O Twoich Danych (podsumowanie):
-      ${typeof dataSummaryForPrompts === 'string' ? dataSummaryForPrompts : JSON.stringify(dataSummaryForPrompts, null, 2)}
+      O Twoich Danych (kontekst zawiera podsumowanie kolumn, spostrzeżenia o wierszach z próbki, a czasem pełne dane jeśli zbiór jest mały):
+      ${dataContextForPrompt}
 
       Twoja Pierwsza Odpowiedź - Wstępna Analiza i Wskazówki:
-      Dostarcz swoją analizę sformatowaną jako obiekt JSON z następującymi dokładnymi kluczami:
-      - "initialFindings": (String) Twoje kluczowe wstępne obserwacje, spostrzeżenia lub hipotezy związane z "${topicDisplayName}" na podstawie dostarczonego podsumowania danych. Ten ciąg znaków powinien być sformatowany za pomocą tagów HTML dla akapitów (np. "<p>Spostrzeżenie 1.</p><p>Spostrzeżenie 2.</p>"). Kiedy odnosisz się do nazw kolumn z podsumowania danych (np. OperatorWorkload_%, TasksCompleted), NIE używaj odwrotnych apostrofów. Zamiast tego, otocz dokładną nazwę kolumny tagiem <span class="column-name-highlight"></span>. Na przykład, jeśli odnosisz się do 'OperatorWorkload_%', zapisz to jako <span class="column-name-highlight">OperatorWorkload_%</span>. WAŻNE: Cała wartość ciągu znaków dla "initialFindings" musi być prawidłowym ciągiem JSON. Oznacza to, że wszelkie cudzysłowy (") będące częścią treści tekstowej lub atrybutów w HTML (w tym atrybutu class w tagu span) MUSZĄ być poprzedzone znakiem ucieczki jako \\". Na przykład, jeśli akapit to '<p>Powiedział "Więcej danych!".</p>', powinien być reprezentowany w ciągu jako "<p>Powiedział \\"Więcej danych!\\".</p>".
-      - "thoughtProcess": (String) Krótko wyjaśnij kroki lub rozumowanie, które doprowadziły Cię do tych wstępnych ustaleń. Wspomnij, które części podsumowania danych były najbardziej istotne. Ten ciąg znaków powinien być sformatowany jako nieuporządkowana lista HTML (np. "<ul><li>Krok pierwszy wyjaśniający \\"dlaczego\\".</li><li>Krok drugi.</li><li>Krok trzeci.</li></ul>") zawierająca dokładnie 3 punkty. Kiedy odnosisz się do nazw kolumn, NIE używaj odwrotnych apostrofów. Zamiast tego, otocz dokładną nazwę kolumny tagiem <span class="column-name-highlight"></span>, jak opisano powyżej. WAŻNE: Cała wartość ciągu znaków для "thoughtProcess" musi być prawidłowym ciągiem JSON. Oznacza to, że wszelkie cudzysłowy (") będące częścią treści tekstowej lub atrybutów w elementach listy HTML (w tym atrybutu class w tagu span) MUSZĄ być poprzedzone znakiem ucieczki jako \\".
-      - "questionSuggestions": (Array of strings) Podaj 3-5 wnikliwych pytań uzupełniających (w formie zwykłego tekstu), które użytkownik mógłby zadać, aby zagłębić się w temat "${topicDisplayName}" lub zbadać powiązane aspekty. Pytania te powinny być praktyczne i oparte na Twoich wstępnych ustaleniach lub naturze danych. Każdy ciąg znaków w tablicy powinien być prostym pytaniem tekstowym bez żadnych znaczników HTML. NIE używaj odwrotnych apostrofów ani tagów span HTML dla nazw kolumn w tych sugestiach; używaj po prostu zwykłej nazwy kolumny.
+      Proszę odpowiedz na następujące pytanie: "Na podstawie dostarczonych danych (w tym poszczególnych wierszy, jeśli zostały przekazane w sekcji 'Pełne dane' lub opisane w 'rowInsights' w podsumowaniu), jakie są kluczowe wstępne obserwacje, spostrzeżenia, potencjalne obszary do dalszej analizy oraz hipotezy dotyczące tematu '${topicDisplayName}'? Jeśli analizujesz pełne dane lub spostrzeżenia o wierszach, odnieś się do konkretnych wartości w komórkach [wiersz, kolumna], gdzie to istotne."
+      Dostarcz swoją odpowiedź sformatowaną jako obiekt JSON z następującymi dokładnymi kluczami:
+      - "conciseInitialSummary": (String) Krótkie, 1-2 zdaniowe podsumowanie Twoich głównych wstępnych ustaleń, odpowiednie do wyświetlenia jako pierwsza wiadomość w interfejsie czatu. Powinien to być zwykły tekst, bez formatowania HTML.
+      - "initialFindings": (String) Główna, szczegółowa część Twojej odpowiedzi na powyższe pytanie. Powinny to być Twoje kluczowe wstępne obserwacje, spostrzeżenia lub hipotezy. Jeśli odnosiłeś się do konkretnych wartości wierszy/kolumn, uwzględnij te odniesienia. Ten ciąg znaków powinien być sformatowany za pomocą tagów HTML dla akapitów (np. "<p>Spostrzeżenie 1.</p><p>Spostrzeżenie 2.</p>"). Kiedy odnosisz się do nazw kolumn (np. OperatorWorkload_%, TasksCompleted), NIE używaj odwrotnych apostrofów. Zamiast tego, otocz dokładną nazwę kolumny tagiem <span class="column-name-highlight"></span>. Na przykład, jeśli odnosisz się do 'OperatorWorkload_%', zapisz to jako <span class="column-name-highlight">OperatorWorkload_%</span>. WAŻNE: Cała wartość ciągu znaków dla "initialFindings" musi być prawidłowym ciągiem JSON. Wszelkie cudzysłowy (") w treści lub atrybutach HTML MUSZĄ być poprzedzone znakiem ucieczki jako \\".
+      - "thoughtProcess": (String) Krótko wyjaśnij kroki lub rozumowanie, które doprowadziły Cię do sformułowania odpowiedzi w "initialFindings". Jeśli analizowałeś pełne dane lub 'rowInsights', opisz, jak poszczególne wiersze lub wartości wpłynęły na Twoje wnioski. Ten ciąg znaków powinien być sformatowany jako nieuporządkowana lista HTML (np. "<ul><li>Krok pierwszy wyjaśniający \\"dlaczego\\".</li><li>Krok drugi.</li><li>Krok trzeci.</li></ul>") zawierająca dokładnie 3 punkty. Kiedy odnosisz się do nazw kolumn, użyj tagu <span class="column-name-highlight"></span>. WAŻNE: Cała wartość ciągu znaków dla "thoughtProcess" musi być prawidłowym ciągiem JSON. Wszelkie cudzysłowy (") w treści lub atrybutach HTML MUSZĄ być poprzedzone znakiem ucieczki jako \\".
+      - "questionSuggestions": (Array of strings) Podaj 3-5 wnikliwych pytań uzupełniających (zwykły tekst), które użytkownik mógłby zadać. Pytania te powinny być praktyczne i oparte na Twoich ustaleniach. NIE używaj odwrotnych apostrofów ani tagów span HTML dla nazw kolumn w tych sugestiach.
 
-      Styl Interakcji: Bądź analityczny, wnikliwy i proaktywny w sugerowaniu kolejnych kroków.
-
-      Teraz proszę, przedstaw swoją wstępną analizę dla tematu "${topicDisplayName}" na podstawie podsumowania zbioru danych.
+      Styl Interakcji: Bądź analityczny, wnikliwy i proaktywny.
     `;
     
     await topicDocRef.update({ initialPromptSent: initialPrompt });
 
-    // 5. Call Gemini API, requesting JSON output
     console.log(`Calling Gemini for topic: ${topicDisplayName}`);
     let initialAnalysisResult;
     try {
@@ -95,51 +120,46 @@ export default async function handler(req, res) {
       return res.status(500).json({ success: false, message: `Failed to generate initial analysis with AI: ${geminiError.message}` });
     }
 
-    if (!initialAnalysisResult || !initialAnalysisResult.initialFindings || !initialAnalysisResult.thoughtProcess || !initialAnalysisResult.questionSuggestions) {
+    if (!initialAnalysisResult || !initialAnalysisResult.conciseInitialSummary || !initialAnalysisResult.initialFindings || !initialAnalysisResult.thoughtProcess || !initialAnalysisResult.questionSuggestions) {
         console.error("Gemini response for initial analysis is missing required fields.", initialAnalysisResult);
-        await topicDocRef.update({ status: "error_initial_analysis", error: "AI response missing required fields.", lastUpdatedAt: admin.firestore.FieldValue.serverTimestamp() });
-        return res.status(500).json({ success: false, message: "AI response for initial analysis was incomplete." });
+        await topicDocRef.update({ status: "error_initial_analysis", error: "AI response missing required fields (conciseInitialSummary or others).", lastUpdatedAt: admin.firestore.FieldValue.serverTimestamp() });
+        return res.status(500).json({ success: false, message: "AI response for initial analysis was incomplete (conciseInitialSummary or others)." });
     }
     console.log(`Initial analysis for topic ${topicId} generated successfully.`);
     
     const finalTimestamp = admin.firestore.FieldValue.serverTimestamp(); // Timestamp for completion
 
-    // 6. Store initialAnalysisResult in the topic document
     await topicDocRef.update({
-      initialAnalysisResult: initialAnalysisResult,
+      initialAnalysisResult: initialAnalysisResult, 
       status: "completed",
       lastUpdatedAt: finalTimestamp,
     });
 
-    // 7. Initialize chatHistory subcollection with the first "model" message
     const chatHistoryRef = topicDocRef.collection('chatHistory');
-    const firstMessageId = `initialMsg_${Date.now()}`; // Unique ID for the message
+    const firstMessageId = `initialMsg_${Date.now()}`; 
     
     await chatHistoryRef.doc(firstMessageId).set({
       role: "model",
-      parts: [{ text: initialAnalysisResult.initialFindings }], // Storing HTML here, as per prompt
-      timestamp: finalTimestamp, // Use the same timestamp for consistency
-      detailedAnalysisBlock: initialAnalysisResult, // Contains HTML formatted strings
-      messageId: firstMessageId // Store the ID within the document as well
+      parts: [{ text: initialAnalysisResult.conciseInitialSummary }], 
+      timestamp: finalTimestamp, 
+      detailedAnalysisBlock: initialAnalysisResult, 
+      messageId: firstMessageId 
     });
-    console.log(`First chat message added for topic ${topicId}`);
+    console.log(`First chat message added for topic ${topicId} using concise summary.`);
 
-    // Update lastUpdatedAt for the parent analysis document
     await analysisDocRef.update({ lastUpdatedAt: finalTimestamp });
 
     return res.status(200).json({
       success: true,
-      data: initialAnalysisResult,
+      data: initialAnalysisResult, 
       message: "Initial topic analysis completed successfully."
     });
 
   } catch (error) {
     console.error('Error in /api/initiate-topic-analysis:', error);
-    // Ensure a server timestamp is used if an error occurs
     const errorTimestamp = admin.firestore.FieldValue.serverTimestamp();
     if (topicDocRef && typeof topicDocRef.update === 'function') { 
         try {
-            // Update status to indicate error, and log the error message
             await topicDocRef.update({ status: "error_server", error: error.message, lastUpdatedAt: errorTimestamp });
         } catch (updateError) {
             console.error('Failed to update topic status on server error:', updateError);
