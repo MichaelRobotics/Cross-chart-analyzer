@@ -10,6 +10,14 @@ export default async function handler(req, res) {
 
   let topicDocRef; // Declare here to be accessible in catch block
   // TODO: Add a check to see if the topic is already analyzed. If so, return the existing analysis.
+  // TODO: Add a check to see if the topic is already being analyzed. If so, return the existing analysis.
+  // TODO: Add a check to see if the topic is already in the queue. If so, return the existing analysis.
+  // TODO: Add a check to see if the topic is already being analyzed. If so, return the existing analysis.
+  // TODO: Add a check to see if the topic is already in the queue. If so, return the existing analysis.
+  // TODO: Add a check to see if the topic is already being analyzed. If so, return the existing analysis.
+  // TODO: Add a check to see if the topic is already in the queue. If so, return the existing analysis.
+  // TODO: Add a check to see if the topic is already being analyzed. If so, return the existing analysis.
+  // TODO: Add a check to see if the topic is already in the queue. If so, return the existing analysis.
   try {
     const { analysisId, topicId, topicDisplayName } = req.body;
 
