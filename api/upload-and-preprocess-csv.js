@@ -201,7 +201,35 @@ export default async function handler(req, res) {
       createdAt: timestamp,
       lastUpdatedAt: timestamp,
       status: "ready_for_topic_analysis", 
-    });
+    };
+
+    const SMALL_DATASET_THRESHOLD_CELLS = 200; 
+    const SMALL_DATASET_THRESHOLD_JSON_LENGTH = 200000; 
+    
+    let smallDatasetRawDataString = null;
+    if (rowCount * columnCount <= SMALL_DATASET_THRESHOLD_CELLS) {
+        try {
+            // Przechowujemy bezpośrednio tablicę obiektów, Firestore sobie z tym poradzi
+            // JSON.stringify jest potrzebny tylko do sprawdzenia długości
+            const tempStringified = JSON.stringify(cleanedData);
+            if (tempStringified.length <= SMALL_DATASET_THRESHOLD_JSON_LENGTH) {
+                analysisDocData.smallDatasetRawData = cleanedData; 
+                console.log(`Small dataset (${rowCount}x${columnCount}), storing full cleanedData in Firestore.`);
+            } else {
+                console.log(`Small dataset (${rowCount}x${columnCount}), but serialized JSON is too large (${tempStringified.length} bytes) for Firestore field. Not storing.`);
+                analysisDocData.smallDatasetRawData = null;
+            }
+        } catch (stringifyError) {
+            console.error("Error during size check of cleanedData for Firestore:", stringifyError);
+            analysisDocData.smallDatasetRawData = null;
+        }
+    } else {
+        console.log(`Dataset (${rowCount}x${columnCount}) is too large for storing full cleanedData in Firestore field.`);
+        analysisDocData.smallDatasetRawData = null;
+    }
+    const analysisDocRef = firestore.collection('analyses').doc(analysisId);
+    await analysisDocRef.set(analysisDocData);
+
     console.log(`Analysis record created in Firestore for ID: ${analysisId}`);
 
     return res.status(201).json({
