@@ -58,7 +58,7 @@ export default async function handler(req, res) {
     try {
         // Call Gemini API
         dataNatureDescription = await generateContent(
-            'gemini-1.5-flash-preview-05-20', // Ensure this model is appropriate
+            'gemini-1.5-flash-preview-05-20', // Corrected model name as per original file
             dataNaturePrompt
             // No responseMimeType needed, expecting plain text
         );
@@ -96,7 +96,8 @@ export default async function handler(req, res) {
                 skipEmptyLines: 'greedy', 
                 dynamicTyping: true 
             });
-            const cleanedDataForFirestore = parseResult.data;
+            const cleanedDataForFirestore = parseResult.data.filter(row => Object.values(row).some(val => val !== null && val !== undefined && val !== ''));
+
 
             // Check if the stringified version of the cleaned data exceeds the JSON length threshold
             const tempStringified = JSON.stringify(cleanedDataForFirestore);

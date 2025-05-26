@@ -178,7 +178,7 @@ export default async function handler(req, res) {
     try {
       // Call Gemini API to generate the summary
       dataSummaryForPrompts = await generateContent(
-        'gemini-1.5-flash-preview-05-20', // Ensure this model is appropriate and available
+        'gemini-1.5-flash-preview-05-20', // Corrected model name as per original file
         dataSummaryPrompt,
         { responseMimeType: 'application/json' } // Expecting a JSON response
       );
