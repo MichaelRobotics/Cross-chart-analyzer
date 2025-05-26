@@ -11,21 +11,16 @@ html, body {
     box-sizing: inherit;
 }
 
-/* General Body Styles from new HTML */
-/* We'll apply these to a wrapper in NewLandingPage.js instead of body directly */
-/* to avoid conflict if other pages don't want this animated background */
-
 #root {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    font-family: 'Inter', sans-serif; /* Ensure Inter font is primary */
-    background-color: #0B101F; /* Fallback background */
+    font-family: 'Inter', sans-serif;
+    background-color: #0B101F; /* Fallback background for entire app */
     color: #CBD5E1; /* Default text color from new design */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
-
 
 /* === NEW STYLES FROM LANDING PAGE HTML === */
 @keyframes subtleGradientAnimation {
@@ -34,13 +29,12 @@ html, body {
     100% { background-position: 0% 50%; }
 }
 
-/* This will be applied to a wrapper inside NewLandingPage.js */
 .new-landing-page-body-wrapper {
     font-family: 'Inter', sans-serif;
     background: linear-gradient(-45deg, #0B101F, #111827, #0B101F, #0E1421);
     background-size: 600% 600%;
     animation: subtleGradientAnimation 60s ease infinite;
-    color: #CBD5E1; /* slate-300 */
+    color: #CBD5E1;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -51,18 +45,18 @@ html, body {
     box-sizing: border-box;
     overflow-x: hidden;
     position: relative;
-    width: 100%; /* Ensure it takes full width */
+    width: 100%;
 }
 
 .new-landing-page-body-wrapper::before {
     content: '';
-    position: fixed; /* Use fixed to cover viewport if page scrolls */
+    position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
     background: radial-gradient(ellipse at center, rgba(15, 23, 42, 0.25) 0%, rgba(15, 23, 42, 0) 70%);
-    z-index: 0; /* Ensure it's behind content but above main background */
+    z-index: 0;
     animation: subtleShadePulse 20s ease-in-out infinite alternate;
     pointer-events: none;
 }
@@ -84,26 +78,26 @@ html, body {
 }
 
 .analyzer-card {
-    background-color: rgba(23, 37, 54, 0.75); /* slate-800 with opacity */
+    background-color: rgba(23, 37, 54, 0.75);
     backdrop-filter: blur(20px) saturate(110%);
     -webkit-backdrop-filter: blur(20px) saturate(110%);
     padding: 2.5rem 3rem;
     border-radius: 24px;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4),
-                0 0 0 1px rgba(51, 65, 85, 0.6); /* slate-700 with opacity */
+                0 0 0 1px rgba(51, 65, 85, 0.6);
     width: 100%;
     max-width: 600px;
     text-align: center;
     animation: cardEntrance 0.8s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
     border: none;
     transition: transform 0.3s ease-out, box-shadow 0.3s ease-out, backdrop-filter 0.4s ease-out;
-    position: relative; /* For z-index stacking context if needed */
-    z-index: 1; /* Above the ::before pseudo-element */
+    position: relative;
+    z-index: 1;
 }
 .analyzer-card:hover {
     transform: translateY(-4px) scale(1.005);
-    box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.45), /* Enhanced shadow */
-                0 0 0 1px rgba(71, 85, 105, 0.7); /* Brighter border */
+    box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.45),
+                0 0 0 1px rgba(71, 85, 105, 0.7);
     backdrop-filter: blur(22px) saturate(140%);
     -webkit-backdrop-filter: blur(22px) saturate(140%);
 }
@@ -148,17 +142,35 @@ html, body {
     100% { transform: translateX(120%); opacity: 0; }
 }
 
-@keyframes logoBreathe {
-    0%, 100% { transform: scale(1); opacity: 0.95; }
-    50% { transform: scale(1.015); opacity: 1; }
-}
-.header-logo-img {
+/* Logo Animation Styles (from Canvas "index_css_logo_animation") */
+.header-logo-img { /* Base styles for the logo image */
     max-width: 80%;
     height: auto;
     object-fit: contain;
-    animation: logoBreathe 6s ease-in-out infinite;
     position: relative;
 }
+
+.header-logo-img.logo-hidden {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+    /* If logoBreathe is applied by default, pause it */
+    /* animation-play-state: paused; */
+}
+
+.header-logo-img.logo-visible {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    transition: opacity 0.5s ease-out 0.2s, transform 0.5s ease-out 0.2s; /* Added slight delay to transition start */
+    /* Apply logoBreathe once visible and after entrance */
+    animation: logoBreathe 6s ease-in-out infinite 0.7s; /* Delay breathe start until after entrance (0.2s + 0.5s) */
+}
+
+@keyframes logoBreathe { /* Ensure this definition is present */
+    0%, 100% { transform: scale(1); opacity: 0.95; }
+    50% { transform: scale(1.015); opacity: 1; }
+}
+/* End of Logo Animation Styles */
+
 
 .analyzer-subtitle {
     font-size: 1.05rem;
@@ -171,7 +183,7 @@ html, body {
     margin-right: auto;
 }
 
-.btn { /* This will be our base .btn class for the Button component */
+.btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -199,14 +211,14 @@ html, body {
 .analyze-cue { animation: buttonCueAnimation 0.7s ease-in-out 2; }
 
 .btn-primary {
-    background-image: linear-gradient(to right, #3B82F6, #2563EB); /* blue-500 to blue-600 */
+    background-image: linear-gradient(to right, #3B82F6, #2563EB);
     color: #FFFFFF;
     font-weight: 600;
     box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -2px rgba(0,0,0,0.1),0 0 0 0px rgba(59,130,246,0);
     transition: all 0.25s cubic-bezier(0.4,0,0.2,1), box-shadow 0.3s ease;
 }
 .btn-primary:hover:not(:disabled) {
-    background-image: linear-gradient(to right, #60A5FA, #3B82F6); /* blue-400 to blue-500 */
+    background-image: linear-gradient(to right, #60A5FA, #3B82F6);
     transform: translateY(-2px);
     box-shadow: 0 7px 10px -3px rgba(0,0,0,0.12),0 4px 6px -3px rgba(0,0,0,0.08),0 0 20px 0px rgba(59,130,246,0.4);
 }
@@ -224,14 +236,14 @@ html, body {
 
 .btn-secondary {
     background-color: transparent;
-    color: #60A5FA; /* blue-400 */
+    color: #60A5FA;
     border: 1.5px solid #60A5FA;
     font-weight: 500;
     box-shadow: none;
 }
 .btn-secondary:hover:not(:disabled) {
     background-color: rgba(59, 130, 246, 0.08);
-    border-color: #3B82F6; /* blue-500 */
+    border-color: #3B82F6;
     color: #3B82F6;
     transform: translateY(-2px);
 }
@@ -241,7 +253,7 @@ html, body {
 }
 .btn-secondary:disabled {
     background-color: transparent !important;
-    color: #475569 !important; /* slate-600 */
+    color: #475569 !important;
     border-color: #475569 !important;
     cursor: not-allowed;
     box-shadow: none !important;
@@ -250,25 +262,25 @@ html, body {
 
 .btn-tertiary {
     background-color: transparent;
-    color: #94A3B8; /* slate-400 */
-    border: 1.5px solid #475569; /* slate-600 */
+    color: #94A3B8;
+    border: 1.5px solid #475569;
     font-weight: 500;
     box-shadow: none;
 }
 .btn-tertiary:hover:not(:disabled) {
-    background-color: rgba(71, 85, 105, 0.15); /* slate-600 with opacity */
-    color: #CBD5E1; /* slate-300 */
-    border-color: #64748B; /* slate-500 */
+    background-color: rgba(71, 85, 105, 0.15);
+    color: #CBD5E1;
+    border-color: #64748B;
     transform: translateY(-2px);
 }
 .btn-tertiary:active:not(:disabled) {
     transform: translateY(0px);
     background-color: rgba(71, 85, 105, 0.2);
 }
-    .btn-tertiary:disabled {
+.btn-tertiary:disabled {
     background-color: transparent !important;
-    color: #475569 !important; /* slate-600 */
-    border-color: #334155 !important; /* slate-700 */
+    color: #475569 !important;
+    border-color: #334155 !important;
     cursor: not-allowed;
     box-shadow: none !important;
     transform: none !important;
@@ -278,13 +290,13 @@ html, body {
     display: flex;
     align-items: center;
     text-align: center;
-    color: #64748B; /* slate-500 */
+    color: #64748B;
     margin: 2rem 0;
     font-size: 0.875rem;
     font-weight: 500;
 }
 .separator::before, .separator::after {
-    content: ''; flex: 1; border-bottom: 1px solid #334155; /* slate-700 */
+    content: ''; flex: 1; border-bottom: 1px solid #334155;
 }
 .separator:not(:empty)::before { margin-right: .75em; }
 .separator:not(:empty)::after { margin-left: .75em; }
@@ -292,11 +304,11 @@ html, body {
 .footer-text {
     margin-top: 3rem;
     font-size: 0.875rem;
-    color: #64748B; /* slate-500 */
+    color: #64748B;
     text-align: center;
     opacity: 0.75;
     letter-spacing: 0.015em;
-    position: relative; /* For z-index */
+    position: relative;
     z-index: 1;
 }
 
@@ -305,20 +317,18 @@ html, body {
     border-radius: 50%; animation: spin 0.8s linear infinite;
     display: inline-block; vertical-align: middle; margin-right: 8px;
 }
-/* Spinner colors will be handled by the Button component logic or more specific classes */
 .btn-primary .spinner, .btn-primary-disabled .spinner { border-color: rgba(255, 255, 255, 0.3); border-top-color: #FFFFFF; }
 .btn-secondary .spinner { border-color: rgba(96, 165, 250, 0.3); border-top-color: #60A5FA; }
 .btn-secondary:disabled .spinner { border-color: rgba(71, 85, 105, 0.3) !important; border-top-color: #475569 !important; }
 .btn-tertiary .spinner { border-color: rgba(148, 163, 184, 0.3); border-top-color: #94A3B8; }
 .btn-tertiary:disabled .spinner { border-color: rgba(71, 85, 105, 0.3) !important; border-top-color: #334155 !important; }
 
-
 @keyframes spin { to { transform: rotate(360deg); } }
 
-#statusMessagesContainer { /* This ID will be on a div inside NewLandingPage.js */
+#statusMessagesContainer {
     margin-top: 1.25rem; width: 100%; min-height: 40px;
     display: flex; justify-content: center; align-items: center;
-    position: relative; /* For z-index */
+    position: relative;
     z-index: 1;
 }
 .status-message {
@@ -334,7 +344,7 @@ html, body {
 .status-error { background-color: rgba(239, 68, 68, 0.15); color: #EF4444; border: 1px solid rgba(239, 68, 68, 0.3); }
 .status-info { background-color: rgba(59, 130, 246, 0.15); color: #3B82F6; border: 1px solid rgba(59, 130, 246, 0.3); }
 
-/* Modal Styles from new HTML */
+/* New Modal Styles (for NewWitnessModal) */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -354,7 +364,7 @@ html, body {
     opacity: 1;
     visibility: visible;
 }
-.modal-content { /* This will be for NewWitnessModal.js */
+.modal-overlay .modal-content { /* Specific to new modal style */
     background-color: #1E293B; /* slate-800 */
     padding: 2rem;
     border-radius: 16px;
@@ -364,86 +374,91 @@ html, body {
     transform: scale(0.95);
     transition: transform 0.3s ease;
     position: relative;
-    color: #CBD5E1; /* Default text color for modal content */
+    color: #CBD5E1;
 }
 .modal-overlay.active .modal-content {
     transform: scale(1);
 }
-.modal-header {
+.modal-overlay .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1.5rem;
-    color: #F8FAFC; /* slate-50 */
+    color: #F8FAFC;
 }
-.modal-title {
-    font-size: 1.5rem; /* 24px */
+.modal-overlay .modal-title {
+    font-size: 1.5rem;
     font-weight: 600;
 }
-.modal-close-btn {
+.modal-overlay .modal-close-btn {
     background: none;
     border: none;
-    color: #94A3B8; /* slate-400 */
+    color: #94A3B8;
     font-size: 1.75rem;
     cursor: pointer;
     padding: 0.25rem;
     line-height: 1;
 }
-.modal-close-btn:hover {
-    color: #F8FAFC; /* slate-50 */
+.modal-overlay .modal-close-btn:hover {
+    color: #F8FAFC;
 }
-.modal-body .form-label {
+.modal-overlay .modal-body .form-label {
     display: block;
     margin-bottom: 0.5rem;
-    font-size: 0.875rem; /* 14px */
-    color: #9CA3AF; /* gray-400 */
+    font-size: 0.875rem;
+    color: #9CA3AF;
     text-align: left;
 }
-.modal-body .form-input {
+.modal-overlay .modal-body .form-input {
     width: 100%;
     padding: 0.75rem 1rem;
     margin-bottom: 1.25rem;
     border-radius: 8px;
-    background-color: #334155; /* slate-700 */
-    border: 1px solid #475569; /* slate-600 */
-    color: #F1F5F9; /* slate-100 */
+    background-color: #334155;
+    border: 1px solid #475569;
+    color: #F1F5F9;
     font-size: 1rem;
     transition: border-color 0.2s ease;
 }
-.modal-body .form-input:focus {
+.modal-overlay .modal-body .form-input:focus {
     outline: none;
-    border-color: #3B82F6; /* blue-500 */
+    border-color: #3B82F6;
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
 }
-.modal-footer {
+.modal-overlay .modal-footer {
     display: flex;
     justify-content: flex-end;
-    gap: 0.75rem; /* Space between buttons */
+    gap: 0.75rem;
     margin-top: 1.5rem;
 }
-.modal-footer .btn { /* Modifiers for buttons inside modal */
+.modal-overlay .modal-footer .btn {
     width: auto;
     padding: 0.75rem 1.5rem;
-    margin-bottom: 0; /* Remove bottom margin for modal buttons */
+    margin-bottom: 0;
 }
-#modalStatusMessage { /* ID for status message inside modal */
+.modal-overlay #modalStatusMessage { /* ID for status message inside new modal */
     margin-top: 1rem;
     font-size: 0.875rem;
-    min-height: 20px; /* Prevent layout shift */
-    text-align: left; /* Usually better for messages in forms */
+    min-height: 20px;
+    text-align: left;
 }
 
-
-/* === END OF NEW STYLES === */
-
-
-/* Old Modal Styles (from src/index.css) - These are for AnalysisNameModal and DigitalTwinModal */
-/* Keep them for now if those modals are still in use or until they are refactored */
-.modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); align-items: center; justify-content: center; }
+/* Old Modal Styles (for AnalysisNameModal and potentially DigitalTwinModal if not refactored) */
+.modal { /* General class for older modals */
+    display: none;
+    position: fixed;
+    z-index: 1000; /* Ensure it's above .new-landing-page-body-wrapper::before */
+    left: 0; top: 0; width: 100%; height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.6);
+    align-items: center;
+    justify-content: center;
+}
 .modal.active { display: flex; }
-/* .modal-content for old modals - slightly different from new .modal-content */
+
+/* Styles specific to older modal content, prefix with .modal:not(.modal-overlay) to avoid conflict */
 .modal:not(.modal-overlay) .modal-content {
-    background-color: #2d3748; /* Existing modal background */
+    background-color: #2d3748;
     color: #e2e8f0;
     margin: auto;
     padding: 1.5rem 2rem;
@@ -476,7 +491,7 @@ html, body {
     gap: 0.75rem;
     margin-top: 1.5rem;
 }
-.modal:not(.modal-overlay) .modal-button {
+.modal:not(.modal-overlay) .modal-button { /* Buttons for old modals */
     padding: 0.6rem 1.2rem;
     border-radius: 0.375rem;
     font-weight: 500;
@@ -484,88 +499,13 @@ html, body {
     cursor: pointer;
     font-size: 0.9rem;
 }
-.modal:not(.modal-overlay) .modal-button-primary { background-color: #007bff; color: white; }
-.modal:not(.modal-overlay) .modal-button-primary:hover { background-color: #0056b3; }
+.modal:not(.modal-overlay) .modal-button-primary { background-color: #3B82F6; color: white; } /* Updated color */
+.modal:not(.modal-overlay) .modal-button-primary:hover { background-color: #2563EB; } /* Updated color */
 .modal:not(.modal-overlay) .modal-button-secondary { background-color: #4a5568; color: #e2e8f0; }
 .modal:not(.modal-overlay) .modal-button-secondary:hover { background-color: #718096; }
 
 
-/* Dashboard specific styles from style.css */
-.sidebar { background-color: #2d3748; }
-.sidebar-item { border-radius: 0.375rem; transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out; }
-.sidebar-item.active, .sidebar-item:hover { background-color: #4a5568; }
-.sidebar-item.active { background-color: #3B82F6; color: white; } /* Updated to new primary blue */
-.main-content-bg { background-color: #2d3748; border-radius: 0.5rem; }
-.analysis-content-area { background-color: #1f2937; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem; position: relative; }
-.analysis-block { display: none; }
-.analysis-block.active { display: block; }
-.title-and-navigation-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-.analysis-navigation-arrows { display: flex; gap: 0.5rem; }
-.nav-arrow { background-color: #4a5568; color: #e2e8f0; padding: 0.5rem 0.75rem; border-radius: 0.375rem; cursor: pointer; font-size: 1.25rem; line-height: 1; transition: background-color 0.2s ease-in-out; border: none; }
-.nav-arrow:hover { background-color: #718096; }
-.nav-arrow:disabled { background-color: #374151; color: #6b7280; cursor: not-allowed; }
-.analysis-question-title { font-size: 1.25rem; font-weight: 700; color: #a0aec0; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #4a5568; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.unified-analysis-heading { font-size: 1.125rem; font-weight: 600; color: #90cdf4; margin-bottom: 0.5rem; padding-top: 0.75rem; }
-.unified-analysis-heading:first-of-type { padding-top: 0; }
-.analysis-content-area p, .analysis-content-area li { font-size: 0.875rem; color: #a0aec0; line-height: 1.6; margin-bottom: 0.5rem; }
-.analysis-content-area ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.75rem; }
-.chat-input-container { background-color: #1f2937; border-radius: 0.5rem; }
-.chat-input { background-color: #2d3748; color: #e2e8f0; border: 1px solid #4a5568; }
-.chat-input::placeholder { color: #718096; }
-.chat-button { background-color: #3B82F6; color: white; } /* Updated to new primary blue */
-.bottom-button { background-color: #3B82F6; color: white; } /* Updated to new primary blue */
-.dynamic-analysis-item {}
-
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: #2d3748; border-radius: 10px; }
-::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: #718096; }
-
-/* Old Landing Page Specific Styles - COMMENTED OUT */
-/*
-.landing-page-view-wrapper {
-    background-color: #111827;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    width: 100%;
-    padding: 1rem;
-}
-
-.landing-page-container {
-    background-color: #1f2937;
-    padding: 2rem 2.5rem;
-    border-radius: 0.75rem;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    width: 100%;
-    max-width: 500px;
-    text-align: center;
-}
-.btn-cyan { background-color: #06b6d4; color: white; }
-.btn-cyan:hover { background-color: #0891b2; }
-.btn-green { background-color: #10b981; color: white; }
-.btn-green:hover { background-color: #059669; }
-.btn-green:disabled { background-color: #34d399; opacity: 0.6; cursor: not-allowed; }
-.btn-purple { background-color: #8b5cf6; color: white; }
-.btn-purple:hover { background-color: #7c3aed; }
-.btn-magenta { background-color: #d946ef; color: white; }
-.btn-magenta:hover { background-color: #c026d3; }
-.or-separator { margin: 1.25rem 0; color: #9ca3af; font-weight: 500; }
-.landing-footer-link {
-    margin-top: 1.5rem;
-    background-color: transparent; color: #9ca3af;
-    font-size: 0.875rem; font-weight: 500; padding: 0.5rem 1rem;
-    max-width: 500px;
-    width: 100%;
-}
-.landing-footer-link:hover { color: #60a5fa; background-color: #374151; }
-.file-name-display { margin-top: 0.5rem; margin-bottom: 1rem; font-size: 0.8rem; color: #9ca3af; min-height: 1.2em; }
-*/
-
-/* Dashboard specific styles (from previous body.dashboard-active) */
-/* These might also need review if the overall app shell changes */
+/* Dashboard specific styles */
 .dashboard-view-wrapper {
     background-color: #111827; /* Consistent with new landing background theme */
     display: flex;
@@ -577,3 +517,96 @@ html, body {
         flex-direction: row;
     }
 }
+.sidebar { background-color: #1E293B; /* Darker slate, consistent with new modal */ }
+.sidebar-item {
+    color: #94A3B8; /* slate-400 */
+    border-radius: 0.375rem;
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+.sidebar-item.active, .sidebar-item:hover {
+    background-color: #334155; /* slate-700 */
+    color: #F1F5F9; /* slate-100 */
+}
+.sidebar-item.active {
+    background-color: #3B82F6; /* Primary blue */
+    color: white;
+}
+.main-content-bg { background-color: #1E293B; /* Darker slate */ border-radius: 0.5rem; }
+.analysis-content-area { background-color: #0F172A; /* Even darker slate */ border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem; position: relative; }
+.analysis-block { display: none; }
+.analysis-block.active { display: block; }
+.title-and-navigation-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; color: #F1F5F9;}
+.analysis-navigation-arrows { display: flex; gap: 0.5rem; }
+.nav-arrow {
+    background-color: #334155; /* slate-700 */
+    color: #94A3B8; /* slate-400 */
+    padding: 0.5rem 0.75rem; border-radius: 0.375rem; cursor: pointer; font-size: 1.25rem; line-height: 1; transition: background-color 0.2s ease-in-out; border: none;
+}
+.nav-arrow:hover:not(:disabled) { background-color: #475569; /* slate-600 */ color: #F1F5F9; }
+.nav-arrow:disabled { background-color: #1E293B; /* slate-800 */ color: #475569; /* slate-600 */ cursor: not-allowed; }
+
+.analysis-question-title {
+    font-size: 1.25rem; font-weight: 600; color: #94A3B8; /* slate-400 */
+    margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #334155; /* slate-700 */
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.unified-analysis-heading {
+    font-size: 1.125rem; font-weight: 500; color: #60A5FA; /* blue-400 */
+    margin-bottom: 0.5rem; padding-top: 0.75rem;
+}
+.unified-analysis-heading:first-of-type { padding-top: 0; }
+.analysis-content-area p, .analysis-content-area li {
+    font-size: 0.9rem; /* Slightly larger for readability */
+    color: #CBD5E1; /* slate-300 */
+    line-height: 1.7; margin-bottom: 0.75rem;
+}
+.analysis-content-area ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 1rem; }
+.column-name-highlight {
+    background-color: rgba(59, 130, 246, 0.15); /* Light blue background */
+    color: #93C5FD; /* Lighter blue text */
+    padding: 0.1em 0.3em;
+    border-radius: 0.25em;
+    font-family: 'Courier New', Courier, monospace; /* Monospace font */
+    font-size: 0.9em;
+}
+
+
+.chat-input-container { background-color: #0F172A; /* Even darker slate */ border-radius: 0.5rem; }
+.chat-input {
+    background-color: #1E293B; /* slate-800 */
+    color: #F1F5F9; /* slate-100 */
+    border: 1px solid #334155; /* slate-700 */
+}
+.chat-input::placeholder { color: #64748B; /* slate-500 */ }
+.chat-button { /* Re-style to match new button system if needed, or keep distinct */
+    background-image: linear-gradient(to right, #3B82F6, #2563EB);
+    color: white;
+    font-weight: 500; /* Match .btn */
+    padding: 0.75rem 1.25rem; /* Adjust padding */
+    border-radius: 0.375rem; /* Match .btn if desired, or keep distinct */
+}
+.chat-button:hover:not(:disabled) {
+    background-image: linear-gradient(to right, #60A5FA, #3B82F6);
+}
+.chat-button:disabled {
+    background: #334155 !important;
+    color: #64748B !important;
+    cursor: not-allowed;
+}
+
+
+.bottom-button { /* For "Analizuj Nowy Plik" in sidebar */
+    background-image: linear-gradient(to right, #3B82F6, #2563EB);
+    color: white;
+    font-weight: 500;
+}
+.bottom-button:hover {
+    background-image: linear-gradient(to right, #60A5FA, #3B82F6);
+}
+
+.dynamic-analysis-item {}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #1E293B; border-radius: 10px; } /* Darker track */
+::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; } /* Lighter thumb */
+::-webkit-scrollbar-thumb:hover { background: #64748B; }
