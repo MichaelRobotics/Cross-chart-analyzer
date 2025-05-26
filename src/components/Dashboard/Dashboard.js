@@ -102,10 +102,13 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
                     }
                 }
             });
-        } else if (isInitialSetup && initialBlockData) {
-             newChatMessages.push({
+        }
+
+        // Only add initial chat message for new analyses
+        if (isInitialSetup && initialBlockData) {
+            newChatMessages.push({
                 sender: 'ai',
-                text: initialBlockData.conciseInitialSummary || "Rozpoczęto analizę.", // Use conciseInitialSummary instead of initialFindings
+                text: initialBlockData.conciseInitialSummary || "Rozpoczęto analizę.",
                 id: `msg-initial-${Date.now()}`
             });
         }
