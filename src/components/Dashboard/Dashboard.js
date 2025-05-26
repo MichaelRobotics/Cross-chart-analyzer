@@ -41,15 +41,29 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
             id = 'initial-analysis';
             questionText = analysisName || "Analiza Początkowa";
             findingsHeading = backendBlockData.initialFindings ? `Wyniki dla "${analysisName}"` : (backendBlockData.detailedFindings ? "Wynik" : "Analiza Początkowa");
-            findingsContent = backendBlockData.initialFindings || backendBlockData.detailedFindings || "<p>Brak danych.</p>";
-            thoughtProcessContent = backendBlockData.thoughtProcess || backendBlockData.specificThoughtProcess || "<p>Brak danych.</p>";
-            newSuggestionsContent = backendBlockData.questionSuggestions || backendBlockData.followUpSuggestions || [];
+            
+            // Check if content exists and is not empty
+            const hasInitialFindings = backendBlockData.initialFindings && backendBlockData.initialFindings.trim() !== "";
+            const hasDetailedFindings = backendBlockData.detailedFindings && backendBlockData.detailedFindings.trim() !== "";
+            findingsContent = hasInitialFindings ? backendBlockData.initialFindings : 
+                             (hasDetailedFindings ? backendBlockData.detailedFindings : "<p>Brak danych.</p>");
+            
+            const hasThoughtProcess = backendBlockData.thoughtProcess && backendBlockData.thoughtProcess.trim() !== "";
+            thoughtProcessContent = hasThoughtProcess ? backendBlockData.thoughtProcess : "<p>Brak danych.</p>";
+            
+            newSuggestionsContent = backendBlockData.questionSuggestions || [];
         } else { // From detailedBlock in chatOnTopic response or chat history
             id = `analysis-q-${blockIdSuffix || Date.now()}`; // Use suffix or timestamp as fallback key
             questionText = backendBlockData.questionAsked || "Odpowiedź na pytanie";
             findingsHeading = "Wynik";
-            findingsContent = backendBlockData.detailedFindings || "<p>Brak danych.</p>";
-            thoughtProcessContent = backendBlockData.specificThoughtProcess || "<p>Brak danych.</p>";
+            
+            // Check if content exists and is not empty
+            const hasDetailedFindings = backendBlockData.detailedFindings && backendBlockData.detailedFindings.trim() !== "";
+            findingsContent = hasDetailedFindings ? backendBlockData.detailedFindings : "<p>Brak danych.</p>";
+            
+            const hasSpecificThoughtProcess = backendBlockData.specificThoughtProcess && backendBlockData.specificThoughtProcess.trim() !== "";
+            thoughtProcessContent = hasSpecificThoughtProcess ? backendBlockData.specificThoughtProcess : "<p>Brak danych.</p>";
+            
             newSuggestionsContent = backendBlockData.followUpSuggestions || [];
         }
         
@@ -73,6 +87,7 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
         let newChatMessages = [];
         let newQuestionIdCounter = 0;
 
+        // Process initial analysis block if it exists
         const initialBlockData = topicData.initialAnalysisResult || (isInitialSetup ? topicData.data : null);
         if (initialBlockData) {
             const formattedInitialBlock = formatBlockDataFromBackend(initialBlockData, 'initial', analysisName);
@@ -81,15 +96,19 @@ const Dashboard = ({ params, onNavigateToLanding }) => {
             }
         }
         
+        // Process chat history
         if (topicData.chatHistory && Array.isArray(topicData.chatHistory)) {
             topicData.chatHistory.forEach(msg => {
+                // Always add chat message
                 newChatMessages.push({
                     sender: msg.role === 'user' ? 'user' : 'ai',
                     text: msg.parts && msg.parts.length > 0 && msg.parts[0].text ? msg.parts[0].text : "Brak treści wiadomości",
                     id: msg.messageId || `msg-${Date.now()}-${Math.random()}`, 
                 });
 
-                if (msg.role === 'model' && msg.detailedAnalysisBlock) {
+                // Only create analysis block if it's an AI message with detailed analysis data
+                if (msg.role === 'model' && msg.detailedAnalysisBlock && 
+                    (msg.detailedAnalysisBlock.detailedFindings || msg.detailedAnalysisBlock.specificThoughtProcess)) {
                     newQuestionIdCounter++;
                     const formattedChatBlock = formatBlockDataFromBackend(
                         msg.detailedAnalysisBlock, 
