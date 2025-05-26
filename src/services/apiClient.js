@@ -9,7 +9,7 @@ const API_BASE_URL = '/api';
  * This function handles common aspects of API calls, such as setting the base URL,
  * managing headers, and basic error handling.
  *
- * @param {string} endpoint - The API endpoint to call (e.g., '/upload-and-preprocess-csv').
+ * @param {string} endpoint - The API endpoint to call (e.g., '/csv/initiateUpload').
  * @param {object} options - Configuration options for the fetch call (method, headers, body).
  * @returns {Promise<any>} - A promise that resolves with the JSON response from the API.
  * @throws {Error} - Throws an error if the API request fails (e.g., network error, non-OK HTTP status).
@@ -19,8 +19,13 @@ async function request(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
 
     // Default headers for JSON content. These can be overridden by options.headers.
-    const headers = {
+    const defaultHeaders = {
         'Content-Type': 'application/json',
+        // Add any other default headers here, like Authorization if needed
+    };
+
+    const headers = {
+        ...defaultHeaders,
         ...options.headers,
     };
 
@@ -50,10 +55,13 @@ async function request(endpoint, options = {}) {
             try {
                 errorData = await response.json();
             } catch (e) {
-                errorData = { message: response.statusText };
+                // If response.json() fails, construct errorData with statusText
+                errorData = { message: response.statusText || `HTTP error ${response.status}` };
             }
             // Throw an error with the message from the backend or the HTTP status text.
-            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+            const errorMessage = errorData.message || `HTTP error! status: ${response.status}`;
+            console.error(`API Error (${response.status}) for ${endpoint}: ${errorMessage}`, errorData);
+            throw new Error(errorMessage);
         }
 
         // Handle responses that do not have content (e.g., HTTP 204 No Content).
@@ -66,8 +74,11 @@ async function request(endpoint, options = {}) {
     } catch (error) {
         // Log the error for debugging purposes and re-throw it so it can be
         // handled by the calling component or service.
-        console.error(`API request to ${endpoint} failed: ${error.message}`);
-        throw error;
+        // Error is already logged if it came from !response.ok block
+        if (!(error.message.startsWith("API Error") || error.message.startsWith("HTTP error"))) {
+             console.error(`API request to ${endpoint} failed: ${error.message}`, error);
+        }
+        throw error; // Re-throw the error to be caught by the caller
     }
 }
 
@@ -134,14 +145,10 @@ export const apiClient = {
 
     /**
      * Initiates a new topic analysis for a given analysisId or fetches an existing one.
-     * This is used to get the initial AI-generated overview for a specific topic
-     * related to an uploaded CSV.
-     *
-     * @param {string} analysisId - The ID of the overall analysis (e.g., from uploadAndPreprocessCsv).
-     * @param {string} topicId - The ID of the specific topic to analyze (e.g., "WaskieGardla", "default_topic_id").
-     * @param {string} topicDisplayName - The user-friendly name for the topic (e.g., "Wąskie Gardła").
-     * @returns {Promise<object>} - The backend response, expected to contain `initialAnalysisResult`
-     * (with fields like initialFindings, thoughtProcess, questionSuggestions).
+     * @param {string} analysisId - The ID of the overall analysis.
+     * @param {string} topicId - The ID of the specific topic to analyze.
+     * @param {string} topicDisplayName - The user-friendly name for the topic.
+     * @returns {Promise<object>} The backend response.
      */
     initiateTopicAnalysis: (analysisId, topicId, topicDisplayName) => {
         return request('/initiate-topic-analysis', {
@@ -152,15 +159,10 @@ export const apiClient = {
 
     /**
      * Sends a user's message to the chat API for a specific topic and analysis.
-     * The backend will process the message, interact with the AI, and return
-     * the AI's response.
-     *
      * @param {string} analysisId - The ID of the overall analysis.
      * @param {string} topicId - The ID of the current topic being discussed.
      * @param {string} userMessageText - The text of the user's message.
-     * @returns {Promise<object>} - The backend response, including the AI's concise
-     * `chatMessage` for the UI and a more `detailedBlock`
-     * for the main analysis display.
+     * @returns {Promise<object>} The backend response.
      */
     chatOnTopic: (analysisId, topicId, userMessageText) => {
         return request('/chat-on-topic', {
@@ -171,28 +173,17 @@ export const apiClient = {
 
     /**
      * Fetches the list of all available analyses from the backend.
-     * This assumes a new backend endpoint (GET /api/analyses) will be implemented
-     * to provide this list.
-     *
-     * @returns {Promise<object>} - The backend response, typically an object containing
-     * an array of analyses, e.g., { analyses: [{ analysisId, analysisName, ... }] }.
+     * @returns {Promise<object>} The backend response, e.g., { analyses: [...] }.
      */
     getAnalysesList: () => {
-        // Note: The backend endpoint GET /api/analyses needs to be defined and implemented.
-        return request('/analyses');
+        return request('/analyses'); // Assumes GET by default
     },
 
     /**
-     * Fetches detailed data for a specific analysis topic, including its initial
-     * analysis (if applicable for that topicId) and the full chat history.
-     * This assumes a new backend endpoint (GET /api/analyses/{analysisId}/topics/{topicId})
-     * will be implemented.
-     *
+     * Fetches detailed data for a specific analysis topic.
      * @param {string} analysisId - The ID of the overall analysis.
      * @param {string} topicId - The ID of the specific topic.
-     * @returns {Promise<object>} - The backend response, expected to contain data like
-     * `initialAnalysisResult` (if it's the primary block for the topic)
-     * and `chatHistory` (an array of chat messages).
+     * @returns {Promise<object>} The backend response.
      */
     getAnalysisTopicData: (analysisId, topicId) => {
         // Note: The backend endpoint GET /api/analyses/{analysisId}/topics/{topicId}

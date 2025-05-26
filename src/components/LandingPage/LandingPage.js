@@ -15,6 +15,7 @@ const LandingPage = ({ onNavigateToDashboard }) => {
     
     const [customMessage, setCustomMessage] = useState('');
     const [isCustomMessageActive, setIsCustomMessageActive] = useState(false);
+    const [messageTimeoutId, setMessageTimeoutId] = useState(null); // To manage message auto-close
 
     // New state for managing loading during analysis creation
     const [isCreatingAnalysis, setIsCreatingAnalysis] = useState(false);
@@ -23,39 +24,67 @@ const LandingPage = ({ onNavigateToDashboard }) => {
     const USE_SEQUENTIAL_API = true;
 
     const csvFileInputRef = useRef(null);
-    // Get addAnalysisToLocalState from the context to update the analyses list
     const { addAnalysisToLocalState } = useAnalysisContext();
 
     /**
      * Displays a message to the user via the CustomMessage component.
      * @param {string} message - The message to display.
+     * @param {number} duration - How long to display the message in ms. 0 for manual close.
      */
-    const showAppMessage = (message) => {
+    const showAppMessage = (message, duration = 4000) => {
+        if (messageTimeoutId) {
+            clearTimeout(messageTimeoutId); // Clear previous timeout if a new message comes quickly
+        }
         setCustomMessage(message);
         setIsCustomMessageActive(true);
+        
+        if (duration > 0) {
+            const newTimeoutId = setTimeout(() => {
+                setIsCustomMessageActive(false);
+                setCustomMessage(''); // Clear message content after hiding
+            }, duration);
+            setMessageTimeoutId(newTimeoutId);
+        } else {
+            setMessageTimeoutId(null); // No auto-close, manual close or next message will handle
+        }
+    };
+    
+    /**
+     * Clears the selected file and resets related UI elements.
+     */
+    const clearFileSelection = () => {
+        setSelectedFile(null);
+        setFileNameDisplay('Nie wybrano pliku');
+        setInitialModalAnalysisName('');
+        if (csvFileInputRef.current) {
+            csvFileInputRef.current.value = ""; // Important to allow re-selecting the same file
+        }
     };
 
     /**
      * Handles the selection of a CSV file by the user.
-     * Updates the UI to show the selected file's name and prepares
-     * an initial name for the analysis based on the filename.
      * @param {Event} event - The file input change event.
      */
     const handleFileSelect = (event) => {
         const file = event.target.files[0];
         if (file) {
+            if (file.type !== "text/csv" && !file.name.toLowerCase().endsWith(".csv")) {
+                showAppMessage('Proszę wybrać plik w formacie CSV.', 5000);
+                clearFileSelection();
+                return;
+            }
             setSelectedFile(file);
             setFileNameDisplay(`Wybrano: ${file.name}`);
             // Set initial analysis name based on filename (without extension)
             setInitialModalAnalysisName(file.name.replace(/\.[^/.]+$/, ""));
         } else {
-            setSelectedFile(null);
-            setFileNameDisplay('Nie wybrano pliku');
-            setInitialModalAnalysisName('');
+            // This case might occur if the user cancels the file dialog
+            clearFileSelection();
         }
         // Reset the file input value to allow re-selecting the same file if needed
+        // This is now done in clearFileSelection and after successful selection
         if (csvFileInputRef.current) {
-            csvFileInputRef.current.value = "";
+           csvFileInputRef.current.value = "";
         }
     };
 
@@ -78,8 +107,9 @@ const LandingPage = ({ onNavigateToDashboard }) => {
      */
     const handleSubmitAnalysisName = async (analysisName) => {
         if (!selectedFile) {
-            showAppMessage('Błąd: Plik nie jest już wybrany.');
+            showAppMessage('Błąd: Plik nie jest już wybrany. Proszę wybrać plik ponownie.');
             setIsAnalysisNameModalOpen(false);
+            clearFileSelection(); // Ensure UI is reset
             return;
         }
 
@@ -177,7 +207,11 @@ const LandingPage = ({ onNavigateToDashboard }) => {
             <CustomMessage 
                 message={customMessage} 
                 isActive={isCustomMessageActive} 
-                onClose={() => setIsCustomMessageActive(false)} 
+                onClose={() => { // Allow manual closing of messages
+                    setIsCustomMessageActive(false);
+                    if (messageTimeoutId) clearTimeout(messageTimeoutId);
+                    setCustomMessage('');
+                }} 
             />
             <div className="landing-page-container">
                 <h1 className="text-3xl font-bold mb-3 text-white">Analizator Danych CSV</h1>
@@ -187,16 +221,16 @@ const LandingPage = ({ onNavigateToDashboard }) => {
                 <input 
                     type="file" 
                     id="csv-file-input-react" 
-                    accept=".csv" 
+                    accept=".csv,text/csv" // More robust accept types
                     className="hidden" 
                     ref={csvFileInputRef}
                     onChange={handleFileSelect}
-                    disabled={isCreatingAnalysis} // Disable file input during processing
+                    disabled={isProcessing} // Disable file input during processing
                 />
                 <button 
                     onClick={() => csvFileInputRef.current.click()} 
                     className="btn btn-cyan mb-3"
-                    disabled={isCreatingAnalysis} // Disable button during processing
+                    disabled={isProcessing} // Disable button during processing
                 >
                     Wybierz plik CSV
                 </button>
@@ -204,22 +238,22 @@ const LandingPage = ({ onNavigateToDashboard }) => {
                 <button 
                     onClick={handleAnalyzeFileClick} 
                     className="btn btn-green" 
-                    disabled={!selectedFile || isCreatingAnalysis} // Disable if no file or if processing
+                    disabled={!selectedFile || isProcessing} // Disable if no file or if processing
                 >
-                    {isCreatingAnalysis ? 'Przetwarzanie...' : 'Analizuj Plik'}
+                    {isProcessing ? 'Przetwarzanie...' : 'Analizuj Plik'}
                 </button>
                 <div className="or-separator">LUB</div>
                 <button 
                     onClick={() => onNavigateToDashboard({ mode: 'my_analyses' })} 
                     className="btn btn-purple mb-3"
-                    disabled={isCreatingAnalysis} // Disable during processing
+                    disabled={isProcessing} // Disable during processing
                 >
                     Przeglądaj Moje Analizy
                 </button>
                 <button 
                     onClick={() => setIsDigitalTwinModalOpen(true)} 
                     className="btn btn-magenta"
-                    disabled={isCreatingAnalysis} // Disable during processing
+                    disabled={isProcessing} // Disable during processing
                 >
                     Połącz z Witness Digital Twin
                 </button>
@@ -227,7 +261,7 @@ const LandingPage = ({ onNavigateToDashboard }) => {
             <button 
                 onClick={() => onNavigateToDashboard({ mode: 'classic' })} 
                 className="btn landing-footer-link"
-                disabled={isCreatingAnalysis} // Disable during processing
+                disabled={isProcessing} // Disable during processing
             >
                 Analizator Danych CSV - Wersja Klasyczna
             </button>
@@ -237,15 +271,16 @@ const LandingPage = ({ onNavigateToDashboard }) => {
                 onClose={() => setIsAnalysisNameModalOpen(false)}
                 onSubmit={handleSubmitAnalysisName}
                 initialName={initialModalAnalysisName}
-                showMessage={showAppMessage}
+                showMessage={showAppMessage} // Pass down for modal to use
             />
             <DigitalTwinModal 
                 isOpen={isDigitalTwinModalOpen}
                 onClose={() => setIsDigitalTwinModalOpen(false)}
-                showMessage={showAppMessage}
+                showMessage={showAppMessage} // Pass down
             />
         </div>
     );
 };
 
 export default LandingPage;
+
