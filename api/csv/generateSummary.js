@@ -146,8 +146,8 @@ export default async function handler(req, res) {
     };
 
     // Check if dataset is small enough to store in Firestore
-    const SMALL_DATASET_THRESHOLD_CELLS = 200;
-    const SMALL_DATASET_THRESHOLD_JSON_LENGTH = 200000;
+    const SMALL_DATASET_THRESHOLD_CELLS = 300;
+    const SMALL_DATASET_THRESHOLD_JSON_LENGTH = 300000;
     
     if (rowCount * columnCount <= SMALL_DATASET_THRESHOLD_CELLS) {
       try {
