@@ -15,44 +15,73 @@ const LandingPage = ({ onNavigateToDashboard }) => {
     
     const [customMessage, setCustomMessage] = useState('');
     const [isCustomMessageActive, setIsCustomMessageActive] = useState(false);
+    const [messageTimeoutId, setMessageTimeoutId] = useState(null); // To manage message auto-close
 
-    // New state for managing loading during analysis creation
-    const [isCreatingAnalysis, setIsCreatingAnalysis] = useState(false);
+    // New state for managing overall processing across multiple steps
+    const [isProcessing, setIsProcessing] = useState(false);
 
     const csvFileInputRef = useRef(null);
-    // Get addAnalysisToLocalState from the context to update the analyses list
     const { addAnalysisToLocalState } = useAnalysisContext();
 
     /**
      * Displays a message to the user via the CustomMessage component.
      * @param {string} message - The message to display.
+     * @param {number} duration - How long to display the message in ms. 0 for manual close.
      */
-    const showAppMessage = (message) => {
+    const showAppMessage = (message, duration = 4000) => {
+        if (messageTimeoutId) {
+            clearTimeout(messageTimeoutId); // Clear previous timeout if a new message comes quickly
+        }
         setCustomMessage(message);
         setIsCustomMessageActive(true);
+        
+        if (duration > 0) {
+            const newTimeoutId = setTimeout(() => {
+                setIsCustomMessageActive(false);
+                setCustomMessage(''); // Clear message content after hiding
+            }, duration);
+            setMessageTimeoutId(newTimeoutId);
+        } else {
+            setMessageTimeoutId(null); // No auto-close, manual close or next message will handle
+        }
+    };
+    
+    /**
+     * Clears the selected file and resets related UI elements.
+     */
+    const clearFileSelection = () => {
+        setSelectedFile(null);
+        setFileNameDisplay('Nie wybrano pliku');
+        setInitialModalAnalysisName('');
+        if (csvFileInputRef.current) {
+            csvFileInputRef.current.value = ""; // Important to allow re-selecting the same file
+        }
     };
 
     /**
      * Handles the selection of a CSV file by the user.
-     * Updates the UI to show the selected file's name and prepares
-     * an initial name for the analysis based on the filename.
      * @param {Event} event - The file input change event.
      */
     const handleFileSelect = (event) => {
         const file = event.target.files[0];
         if (file) {
+            if (file.type !== "text/csv" && !file.name.toLowerCase().endsWith(".csv")) {
+                showAppMessage('Proszę wybrać plik w formacie CSV.', 5000);
+                clearFileSelection();
+                return;
+            }
             setSelectedFile(file);
             setFileNameDisplay(`Wybrano: ${file.name}`);
             // Set initial analysis name based on filename (without extension)
             setInitialModalAnalysisName(file.name.replace(/\.[^/.]+$/, ""));
         } else {
-            setSelectedFile(null);
-            setFileNameDisplay('Nie wybrano pliku');
-            setInitialModalAnalysisName('');
+            // This case might occur if the user cancels the file dialog
+            clearFileSelection();
         }
         // Reset the file input value to allow re-selecting the same file if needed
+        // This is now done in clearFileSelection and after successful selection
         if (csvFileInputRef.current) {
-            csvFileInputRef.current.value = "";
+           csvFileInputRef.current.value = "";
         }
     };
 
@@ -70,67 +99,86 @@ const LandingPage = ({ onNavigateToDashboard }) => {
 
     /**
      * Handles the submission of the analysis name from the modal.
-     * This function now calls the backend to upload and process the CSV.
+     * This function now calls the backend API in three sequential steps.
      * @param {string} analysisName - The name chosen for the analysis.
      */
     const handleSubmitAnalysisName = async (analysisName) => {
         if (!selectedFile) {
-            showAppMessage('Błąd: Plik nie jest już wybrany.');
+            showAppMessage('Błąd: Plik nie jest już wybrany. Proszę wybrać plik ponownie.');
             setIsAnalysisNameModalOpen(false);
+            clearFileSelection(); // Ensure UI is reset
             return;
         }
 
-        setIsCreatingAnalysis(true); // Set loading state
-        showAppMessage(`Przesyłanie i przetwarzanie pliku "${selectedFile.name}"... Proszę czekać.`);
-        setIsAnalysisNameModalOpen(false); // Close the modal
-
-        const formData = new FormData();
-        formData.append('csvFile', selectedFile); // Key 'csvFile' as expected by backend
-        formData.append('analysisName', analysisName);
+        setIsProcessing(true); // Set overall processing state
+        setIsAnalysisNameModalOpen(false); // Close the name input modal
+        let currentAnalysisId; // To store analysisId across steps
 
         try {
-            // Call the backend API to upload and preprocess the CSV
-            const result = await apiClient.uploadAndPreprocessCsv(formData);
+            // --- Step 1: Initiate Upload ---
+            showAppMessage(`Krok 1/3: Przesyłanie pliku "${selectedFile.name}"...`, 0); // 0 duration = manual close or next message
+            const formData = new FormData();
+            formData.append('csvFile', selectedFile);
+            formData.append('analysisName', analysisName);
 
-            if (result && result.success && result.analysisId) {
-                showAppMessage(`Analiza "${analysisName}" utworzona pomyślnie. ID: ${result.analysisId}`);
-                
-                // Add the new analysis to the local context state
-                // The backend should return enough info, or we might need a specific object structure.
-                // Assuming result contains { analysisId, analysisName (user input), originalFileName }
-                // and we can derive the rest or the backend provides it.
-                if (addAnalysisToLocalState) {
-                    addAnalysisToLocalState({
-                        analysisId: result.analysisId,
-                        name: analysisName, // The name user provided
-                        fileName: selectedFile.name, // Original file name
-                        type: 'real', // Mark as a real analysis
-                        // createdAt: new Date().toISOString(), // Or ideally from backend response
-                        // dataNatureDescription: result.dataNatureDescription // If backend returns this
-                    });
-                }
-                
-                // Navigate to the dashboard.
-                // 'load_topic' mode will signal Dashboard.js to fetch the initial analysis for this new entry.
-                onNavigateToDashboard({ 
-                    mode: 'load_topic', 
-                    analysisId: result.analysisId, 
-                    analysisName, // Pass the user-given name for display
-                    fileName: selectedFile.name // Pass the original file name
-                });
-            } else {
-                // Handle cases where backend indicates failure or returns unexpected structure
-                showAppMessage(`Błąd tworzenia analizy: ${result ? result.message : 'Nieznany błąd backendu.'}`);
+            const uploadResult = await apiClient.initiateCsvUpload(formData);
+            if (!uploadResult || !uploadResult.success || !uploadResult.analysisId) {
+                throw new Error(uploadResult.message || 'Krok 1: Nie udało się zainicjować przesyłania pliku.');
             }
+            currentAnalysisId = uploadResult.analysisId; // Store for subsequent steps
+            const originalFileName = uploadResult.originalFileName; // Get originalFileName from response
+            showAppMessage(`Krok 1/3: Przesyłanie pliku zakończone. ID Analizy: ${currentAnalysisId}`, 5000);
+
+            // --- Step 2: Generate Summary ---
+            showAppMessage(`Krok 2/3: Przetwarzanie CSV i generowanie podsumowania... To może chwilę potrwać.`, 0);
+            const summaryResult = await apiClient.generateCsvSummary(currentAnalysisId);
+            if (!summaryResult || !summaryResult.success || !summaryResult.dataSummaryForPrompts) {
+                throw new Error(summaryResult.message || 'Krok 2: Nie udało się wygenerować podsumowania danych.');
+            }
+            const dataSummaryForPrompts = summaryResult.dataSummaryForPrompts; // Store for next step
+            showAppMessage('Krok 2/3: Podsumowanie danych wygenerowane.', 5000);
+
+            // --- Step 3: Describe and Finalize ---
+            showAppMessage(`Krok 3/3: Generowanie opisu danych i finalizacja analizy...`, 0);
+            const finalizeResult = await apiClient.describeAndFinalizeCsv(currentAnalysisId, dataSummaryForPrompts);
+            if (!finalizeResult || !finalizeResult.success) {
+                throw new Error(finalizeResult.message || 'Krok 3: Nie udało się sfinalizować analizy.');
+            }
+            showAppMessage(`Analiza "${analysisName}" utworzona pomyślnie! ID: ${currentAnalysisId}. Przekierowywanie...`, 5000);
+            
+            // Add the new analysis to the local context state
+            if (addAnalysisToLocalState) {
+                addAnalysisToLocalState({
+                    analysisId: finalizeResult.analysisId, // Should be same as currentAnalysisId
+                    name: finalizeResult.analysisName,     // Name provided by user, returned by API
+                    fileName: finalizeResult.originalFileName, // originalFileName from API
+                    type: 'real', // Mark as a real analysis
+                    // dataNatureDescription: finalizeResult.dataNatureDescription, // Also available
+                    // createdAt: new Date().toISOString(), // Or ideally from backend response if not already there
+                });
+            }
+            
+            // Navigate to the dashboard to load the newly created analysis
+            onNavigateToDashboard({ 
+                mode: 'load_topic', // Signal Dashboard to fetch initial topic data
+                analysisId: finalizeResult.analysisId, 
+                analysisName: finalizeResult.analysisName,
+                fileName: finalizeResult.originalFileName,
+                // topicId: "default_topic_id" // Or whatever default topic is configured
+            });
+
         } catch (error) {
-            // Handle network errors or errors thrown by apiClient
-            showAppMessage(`Błąd serwera podczas tworzenia analizy: ${error.message}`);
+            console.error("Error during multi-step analysis creation:", error);
+            showAppMessage(`Błąd podczas przetwarzania: ${error.message || 'Nieznany błąd.'}`, 8000); // Longer display for error
+            // Optionally, inform the backend about the failure if an analysisId was created
+            if (currentAnalysisId) {
+                console.warn(`Processing failed for analysisId ${currentAnalysisId}. Consider backend cleanup or error status update.`);
+                // Example: await apiClient.markAnalysisAsFailed(currentAnalysisId, error.message);
+            }
         } finally {
-            setIsCreatingAnalysis(false); // Clear loading state
-            // Clear selected file after processing to prevent re-submission without re-selection
-            setSelectedFile(null);
-            setFileNameDisplay('Nie wybrano pliku');
-            setInitialModalAnalysisName('');
+            setIsProcessing(false); // Clear overall processing state
+            clearFileSelection(); // Clear the selected file from UI after success or failure
+            // Let the last message (success or error) persist based on its own duration
         }
     };
 
@@ -139,7 +187,11 @@ const LandingPage = ({ onNavigateToDashboard }) => {
             <CustomMessage 
                 message={customMessage} 
                 isActive={isCustomMessageActive} 
-                onClose={() => setIsCustomMessageActive(false)} 
+                onClose={() => { // Allow manual closing of messages
+                    setIsCustomMessageActive(false);
+                    if (messageTimeoutId) clearTimeout(messageTimeoutId);
+                    setCustomMessage('');
+                }} 
             />
             <div className="landing-page-container">
                 <h1 className="text-3xl font-bold mb-3 text-white">Analizator Danych CSV</h1>
@@ -149,16 +201,16 @@ const LandingPage = ({ onNavigateToDashboard }) => {
                 <input 
                     type="file" 
                     id="csv-file-input-react" 
-                    accept=".csv" 
+                    accept=".csv,text/csv" // More robust accept types
                     className="hidden" 
                     ref={csvFileInputRef}
                     onChange={handleFileSelect}
-                    disabled={isCreatingAnalysis} // Disable file input during processing
+                    disabled={isProcessing} // Disable file input during processing
                 />
                 <button 
                     onClick={() => csvFileInputRef.current.click()} 
                     className="btn btn-cyan mb-3"
-                    disabled={isCreatingAnalysis} // Disable button during processing
+                    disabled={isProcessing} // Disable button during processing
                 >
                     Wybierz plik CSV
                 </button>
@@ -166,22 +218,22 @@ const LandingPage = ({ onNavigateToDashboard }) => {
                 <button 
                     onClick={handleAnalyzeFileClick} 
                     className="btn btn-green" 
-                    disabled={!selectedFile || isCreatingAnalysis} // Disable if no file or if processing
+                    disabled={!selectedFile || isProcessing} // Disable if no file or if processing
                 >
-                    {isCreatingAnalysis ? 'Przetwarzanie...' : 'Analizuj Plik'}
+                    {isProcessing ? 'Przetwarzanie...' : 'Analizuj Plik'}
                 </button>
                 <div className="or-separator">LUB</div>
                 <button 
                     onClick={() => onNavigateToDashboard({ mode: 'my_analyses' })} 
                     className="btn btn-purple mb-3"
-                    disabled={isCreatingAnalysis} // Disable during processing
+                    disabled={isProcessing} // Disable during processing
                 >
                     Przeglądaj Moje Analizy
                 </button>
                 <button 
                     onClick={() => setIsDigitalTwinModalOpen(true)} 
                     className="btn btn-magenta"
-                    disabled={isCreatingAnalysis} // Disable during processing
+                    disabled={isProcessing} // Disable during processing
                 >
                     Połącz z Witness Digital Twin
                 </button>
@@ -189,7 +241,7 @@ const LandingPage = ({ onNavigateToDashboard }) => {
             <button 
                 onClick={() => onNavigateToDashboard({ mode: 'classic' })} 
                 className="btn landing-footer-link"
-                disabled={isCreatingAnalysis} // Disable during processing
+                disabled={isProcessing} // Disable during processing
             >
                 Analizator Danych CSV - Wersja Klasyczna
             </button>
@@ -199,12 +251,12 @@ const LandingPage = ({ onNavigateToDashboard }) => {
                 onClose={() => setIsAnalysisNameModalOpen(false)}
                 onSubmit={handleSubmitAnalysisName}
                 initialName={initialModalAnalysisName}
-                showMessage={showAppMessage}
+                showMessage={showAppMessage} // Pass down for modal to use
             />
             <DigitalTwinModal 
                 isOpen={isDigitalTwinModalOpen}
                 onClose={() => setIsDigitalTwinModalOpen(false)}
-                showMessage={showAppMessage}
+                showMessage={showAppMessage} // Pass down
             />
         </div>
     );
