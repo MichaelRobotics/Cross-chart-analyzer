@@ -1,5 +1,5 @@
 // src/components/LandingPage/NewLandingPage.js
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react'; // Added useEffect here
 import NewStyledButton from '../UI/NewStyledButton';
 import NewWitnessModal from '../Modals/NewWitnessModal';
 import AnalysisNameModal from '../Modals/AnalysisNameModal';
@@ -186,8 +186,6 @@ const NewLandingPage = ({ onNavigateToDashboard }) => {
                     variant="file-input"
                     iconSvgPath={UploadIconPath}
                     disabled={isLoadingAnalyze || isLoadingBrowse}
-                    // REMOVED onClick prop here to prevent double trigger
-                    // onClick={() => csvFileInputRef.current && csvFileInputRef.current.click()}
                 />
 
                 <NewStyledButton
