@@ -91,6 +91,48 @@ export const apiClient = {
     },
 
     /**
+     * Sequential CSV processing API calls (new approach to avoid timeouts)
+     */
+    
+    /**
+     * Step 1: Initiates CSV upload and creates initial analysis record
+     * @param {FormData} formData - FormData with 'csvFile' and 'analysisName'
+     * @returns {Promise<object>} - Response with analysisId and csvContent
+     */
+    csvInitiateUpload: (formData) => {
+        return request('/csv/initiateUpload', {
+            method: 'POST',
+            body: formData,
+        });
+    },
+
+    /**
+     * Step 2: Processes CSV and generates data summary
+     * @param {string} analysisId - The analysis ID from step 1
+     * @param {string} csvContent - The CSV content from step 1
+     * @returns {Promise<object>} - Response with dataSummaryForPrompts
+     */
+    csvGenerateSummary: (analysisId, csvContent) => {
+        return request('/csv/generateSummary', {
+            method: 'POST',
+            body: JSON.stringify({ analysisId, csvContent }),
+        });
+    },
+
+    /**
+     * Step 3: Generates data description and finalizes analysis
+     * @param {string} analysisId - The analysis ID
+     * @param {object} dataSummaryForPrompts - The summary from step 2
+     * @returns {Promise<object>} - Final response with complete analysis data
+     */
+    csvDescribeAndFinalize: (analysisId, dataSummaryForPrompts) => {
+        return request('/csv/describeAndFinalize', {
+            method: 'POST',
+            body: JSON.stringify({ analysisId, dataSummaryForPrompts }),
+        });
+    },
+
+    /**
      * Initiates a new topic analysis for a given analysisId or fetches an existing one.
      * This is used to get the initial AI-generated overview for a specific topic
      * related to an uploaded CSV.

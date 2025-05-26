@@ -18,6 +18,9 @@ const LandingPage = ({ onNavigateToDashboard }) => {
 
     // New state for managing loading during analysis creation
     const [isCreatingAnalysis, setIsCreatingAnalysis] = useState(false);
+    
+    // Configuration flag to use sequential API calls (can be changed to false to use old approach)
+    const USE_SEQUENTIAL_API = true;
 
     const csvFileInputRef = useRef(null);
     // Get addAnalysisToLocalState from the context to update the analyses list
@@ -70,7 +73,7 @@ const LandingPage = ({ onNavigateToDashboard }) => {
 
     /**
      * Handles the submission of the analysis name from the modal.
-     * This function now calls the backend to upload and process the CSV.
+     * This function now calls the backend using either the sequential or single-call approach.
      * @param {string} analysisName - The name chosen for the analysis.
      */
     const handleSubmitAnalysisName = async (analysisName) => {
@@ -81,53 +84,88 @@ const LandingPage = ({ onNavigateToDashboard }) => {
         }
 
         setIsCreatingAnalysis(true); // Set loading state
-        showAppMessage(`Przesyłanie i przetwarzanie pliku "${selectedFile.name}"... Proszę czekać.`);
         setIsAnalysisNameModalOpen(false); // Close the modal
 
         const formData = new FormData();
-        formData.append('csvFile', selectedFile); // Key 'csvFile' as expected by backend
+        formData.append('csvFile', selectedFile);
         formData.append('analysisName', analysisName);
 
         try {
-            // Call the backend API to upload and preprocess the CSV
-            const result = await apiClient.uploadAndPreprocessCsv(formData);
+            let finalResult;
+            let analysisId;
 
-            if (result && result.success && result.analysisId) {
-                showAppMessage(`Analiza "${analysisName}" utworzona pomyślnie. ID: ${result.analysisId}`);
+            if (USE_SEQUENTIAL_API) {
+                // NEW APPROACH: Sequential API calls to avoid timeouts
                 
-                // Add the new analysis to the local context state
-                // The backend should return enough info, or we might need a specific object structure.
-                // Assuming result contains { analysisId, analysisName (user input), originalFileName }
-                // and we can derive the rest or the backend provides it.
-                if (addAnalysisToLocalState) {
-                    addAnalysisToLocalState({
-                        analysisId: result.analysisId,
-                        name: analysisName, // The name user provided
-                        fileName: selectedFile.name, // Original file name
-                        type: 'real', // Mark as a real analysis
-                        // createdAt: new Date().toISOString(), // Or ideally from backend response
-                        // dataNatureDescription: result.dataNatureDescription // If backend returns this
-                    });
+                // Step 1: Upload file and create initial analysis
+                showAppMessage(`Krok 1/3: Przesyłanie pliku "${selectedFile.name}"...`);
+                const uploadResult = await apiClient.csvInitiateUpload(formData);
+                
+                if (!uploadResult || !uploadResult.success || !uploadResult.analysisId) {
+                    throw new Error(uploadResult?.message || 'Błąd podczas przesyłania pliku.');
                 }
+
+                analysisId = uploadResult.analysisId;
+                const { csvContent } = uploadResult;
+
+                // Step 2: Process CSV and generate summary
+                showAppMessage(`Krok 2/3: Przetwarzanie danych CSV i generowanie podsumowania...`);
+                const summaryResult = await apiClient.csvGenerateSummary(analysisId, csvContent);
                 
-                // Navigate to the dashboard.
-                // 'load_topic' mode will signal Dashboard.js to fetch the initial analysis for this new entry.
-                onNavigateToDashboard({ 
-                    mode: 'load_topic', 
-                    analysisId: result.analysisId, 
-                    analysisName, // Pass the user-given name for display
-                    fileName: selectedFile.name // Pass the original file name
-                });
+                if (!summaryResult || !summaryResult.success) {
+                    throw new Error(summaryResult?.message || 'Błąd podczas przetwarzania CSV.');
+                }
+
+                const { dataSummaryForPrompts } = summaryResult;
+
+                // Step 3: Generate description and finalize
+                showAppMessage(`Krok 3/3: Generowanie opisu danych i finalizacja analizy...`);
+                finalResult = await apiClient.csvDescribeAndFinalize(analysisId, dataSummaryForPrompts);
+                
+                if (!finalResult || !finalResult.success) {
+                    throw new Error(finalResult?.message || 'Błąd podczas finalizacji analizy.');
+                }
             } else {
-                // Handle cases where backend indicates failure or returns unexpected structure
-                showAppMessage(`Błąd tworzenia analizy: ${result ? result.message : 'Nieznany błąd backendu.'}`);
+                // OLD APPROACH: Single API call (kept for backward compatibility)
+                showAppMessage(`Przesyłanie i przetwarzanie pliku "${selectedFile.name}"... Proszę czekać.`);
+                
+                const result = await apiClient.uploadAndPreprocessCsv(formData);
+
+                if (!result || !result.success || !result.analysisId) {
+                    throw new Error(result?.message || 'Nieznany błąd backendu.');
+                }
+
+                analysisId = result.analysisId;
+                finalResult = result;
             }
+
+            showAppMessage(`Analiza "${analysisName}" utworzona pomyślnie!`);
+            
+            // Add the new analysis to the local context state
+            if (addAnalysisToLocalState) {
+                addAnalysisToLocalState({
+                    analysisId: analysisId,
+                    name: analysisName,
+                    fileName: selectedFile.name,
+                    type: 'real',
+                    dataNatureDescription: finalResult.dataNatureDescription
+                });
+            }
+            
+            // Navigate to the dashboard
+            onNavigateToDashboard({ 
+                mode: 'load_topic', 
+                analysisId: analysisId, 
+                analysisName,
+                fileName: selectedFile.name
+            });
+
         } catch (error) {
-            // Handle network errors or errors thrown by apiClient
-            showAppMessage(`Błąd serwera podczas tworzenia analizy: ${error.message}`);
+            // Handle errors with user-friendly message
+            showAppMessage(`Błąd: ${error.message}`);
         } finally {
             setIsCreatingAnalysis(false); // Clear loading state
-            // Clear selected file after processing to prevent re-submission without re-selection
+            // Clear selected file after processing
             setSelectedFile(null);
             setFileNameDisplay('Nie wybrano pliku');
             setInitialModalAnalysisName('');
