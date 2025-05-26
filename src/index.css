@@ -16,13 +16,13 @@ html, body {
     display: flex;
     flex-direction: column;
     font-family: 'Inter', sans-serif;
-    background-color: #0B101F; /* Fallback background for entire app */
-    color: #CBD5E1; /* Default text color from new design */
+    background-color: #0B101F; /* Base background for entire app (from new landing) */
+    color: #CBD5E1; /* Base text color for entire app (from new landing) */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
 
-/* === NEW STYLES FROM LANDING PAGE HTML === */
+/* === STYLES FOR NEW LANDING PAGE === */
 @keyframes subtleGradientAnimation {
     0% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
@@ -62,14 +62,8 @@ html, body {
 }
 
 @keyframes subtleShadePulse {
-    from {
-        opacity: 0.4;
-        transform: scale(1);
-    }
-    to {
-        opacity: 0.7;
-        transform: scale(1.03);
-    }
+    from { opacity: 0.4; transform: scale(1); }
+    to { opacity: 0.7; transform: scale(1.03); }
 }
 
 @keyframes cardEntrance {
@@ -106,8 +100,10 @@ html, body {
     margin-bottom: 1.5rem;
     display: flex;
     justify-content: center;
+    align-items: center; /* Vertically center logo */
     position: relative;
     overflow: hidden;
+    min-height: 100px; /* Reserve space for logo to prevent layout shift */
 }
 
 .analyzer-card-header::after {
@@ -142,40 +138,31 @@ html, body {
     100% { transform: translateX(120%); opacity: 0; }
 }
 
-/* Logo Animation Styles (from Canvas "index_css_logo_animation") */
-.header-logo-img { /* Base styles for the logo image */
+.header-logo-img {
     max-width: 80%;
     height: auto;
     object-fit: contain;
     position: relative;
 }
-
 .header-logo-img.logo-hidden {
     opacity: 0;
     transform: scale(0.95) translateY(10px);
-    /* If logoBreathe is applied by default, pause it */
-    /* animation-play-state: paused; */
 }
-
 .header-logo-img.logo-visible {
     opacity: 1;
     transform: scale(1) translateY(0);
-    transition: opacity 0.5s ease-out 0.2s, transform 0.5s ease-out 0.2s; /* Added slight delay to transition start */
-    /* Apply logoBreathe once visible and after entrance */
-    animation: logoBreathe 6s ease-in-out infinite 0.7s; /* Delay breathe start until after entrance (0.2s + 0.5s) */
+    transition: opacity 0.5s ease-out 0.2s, transform 0.5s ease-out 0.2s;
+    animation: logoBreathe 6s ease-in-out infinite 0.7s;
 }
-
-@keyframes logoBreathe { /* Ensure this definition is present */
+@keyframes logoBreathe {
     0%, 100% { transform: scale(1); opacity: 0.95; }
     50% { transform: scale(1.015); opacity: 1; }
 }
-/* End of Logo Animation Styles */
-
 
 .analyzer-subtitle {
     font-size: 1.05rem;
     font-weight: 400;
-    color: #A0AEC0; /* gray-500 */
+    color: #A0AEC0;
     margin-bottom: 2.5rem;
     line-height: 1.7;
     max-width: 90%;
@@ -183,7 +170,7 @@ html, body {
     margin-right: auto;
 }
 
-.btn {
+.btn { /* Base styles for new button component */
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -227,8 +214,8 @@ html, body {
     box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1),0 1px 2px -1px rgba(0,0,0,0.1);
 }
 .btn-primary-disabled, .btn-primary:disabled {
-    background: #334155 !important; /* slate-700 */
-    color: #64748B !important; /* slate-500 */
+    background: #334155 !important;
+    color: #64748B !important;
     cursor: not-allowed;
     box-shadow: none !important;
     transform: none !important;
@@ -364,8 +351,8 @@ html, body {
     opacity: 1;
     visibility: visible;
 }
-.modal-overlay .modal-content { /* Specific to new modal style */
-    background-color: #1E293B; /* slate-800 */
+.modal-overlay .modal-content {
+    background-color: #1E293B;
     padding: 2rem;
     border-radius: 16px;
     box-shadow: 0 10px 25px rgba(0,0,0,0.3);
@@ -436,30 +423,35 @@ html, body {
     padding: 0.75rem 1.5rem;
     margin-bottom: 0;
 }
-.modal-overlay #modalStatusMessage { /* ID for status message inside new modal */
+.modal-overlay #modalStatusMessage {
     margin-top: 1rem;
     font-size: 0.875rem;
     min-height: 20px;
     text-align: left;
 }
+/* === END OF NEW LANDING PAGE STYLES === */
 
-/* Old Modal Styles (for AnalysisNameModal and potentially DigitalTwinModal if not refactored) */
-.modal { /* General class for older modals */
+
+/* === BASIC STYLES FOR DASHBOARD & OLD MODALS (AnalysisNameModal, old DigitalTwinModal) === */
+/* These styles will apply if a more specific rule (like from .new-landing-page-body-wrapper) doesn't override them. */
+
+/* Old Modal Styles (for AnalysisNameModal and original DigitalTwinModal) */
+.modal { /* General class for older modals, used by AnalysisNameModal */
     display: none;
     position: fixed;
-    z-index: 1000; /* Ensure it's above .new-landing-page-body-wrapper::before */
+    z-index: 1000;
     left: 0; top: 0; width: 100%; height: 100%;
     overflow: auto;
-    background-color: rgba(0,0,0,0.6);
+    background-color: rgba(0,0,0,0.6); /* Semi-transparent overlay */
     align-items: center;
     justify-content: center;
 }
-.modal.active { display: flex; }
+.modal.active { display: flex; } /* Show modal when active */
 
-/* Styles specific to older modal content, prefix with .modal:not(.modal-overlay) to avoid conflict */
-.modal:not(.modal-overlay) .modal-content {
-    background-color: #2d3748;
-    color: #e2e8f0;
+/* Styles for the content box of older modals */
+.modal:not(.modal-overlay) .modal-content { /* Scoped to not affect new .modal-overlay .modal-content */
+    background-color: #2d3748; /* Dark gray-blue background (basic theme) */
+    color: #e2e8f0; /* Light gray text (basic theme) */
     margin: auto;
     padding: 1.5rem 2rem;
     border-radius: 0.5rem;
@@ -472,16 +464,16 @@ html, body {
     font-size: 1.25rem;
     font-weight: 600;
     margin-bottom: 1rem;
-    color: #cbd5e1;
+    color: #cbd5e1; /* Lighter gray for title (basic theme) */
 }
 .modal:not(.modal-overlay) .modal-input {
     width: 100%;
     padding: 0.65rem 0.75rem;
     margin-bottom: 1rem;
     border-radius: 0.375rem;
-    background-color: #374151;
-    border: 1px solid #4b5563;
-    color: #e2e8f0;
+    background-color: #374151; /* Slightly lighter input background (basic theme) */
+    border: 1px solid #4b5563; /* Border for input (basic theme) */
+    color: #e2e8f0; /* Input text color (basic theme) */
     font-size: 0.9rem;
 }
 .modal:not(.modal-overlay) .modal-input::placeholder { color: #9ca3af; }
@@ -491,7 +483,7 @@ html, body {
     gap: 0.75rem;
     margin-top: 1.5rem;
 }
-.modal:not(.modal-overlay) .modal-button { /* Buttons for old modals */
+.modal:not(.modal-overlay) .modal-button { /* Base for old modal buttons */
     padding: 0.6rem 1.2rem;
     border-radius: 0.375rem;
     font-weight: 500;
@@ -499,114 +491,191 @@ html, body {
     cursor: pointer;
     font-size: 0.9rem;
 }
-.modal:not(.modal-overlay) .modal-button-primary { background-color: #3B82F6; color: white; } /* Updated color */
-.modal:not(.modal-overlay) .modal-button-primary:hover { background-color: #2563EB; } /* Updated color */
-.modal:not(.modal-overlay) .modal-button-secondary { background-color: #4a5568; color: #e2e8f0; }
-.modal:not(.modal-overlay) .modal-button-secondary:hover { background-color: #718096; }
+.modal:not(.modal-overlay) .modal-button-primary {
+    background-color: #007bff; /* Original blue for primary actions in old modals */
+    color: white;
+}
+.modal:not(.modal-overlay) .modal-button-primary:hover {
+    background-color: #0056b3; /* Darker original blue on hover */
+}
+.modal:not(.modal-overlay) .modal-button-secondary {
+    background-color: #4a5568; /* Gray for secondary actions in old modals */
+    color: #e2e8f0;
+}
+.modal:not(.modal-overlay) .modal-button-secondary:hover {
+    background-color: #718096;
+}
 
-
-/* Dashboard specific styles */
+/* Dashboard specific styles (using "basic" theme) */
 .dashboard-view-wrapper {
-    background-color: #111827; /* Consistent with new landing background theme */
+    background-color: #1a202c; /* Basic dashboard background (darker than landing page's base) */
+    color: #e2e8f0; /* Basic dashboard default text color */
     display: flex;
-    flex-direction: column; /* Default for mobile */
+    flex-direction: column;
     min-height: 100vh;
 }
-@media (min-width: 768px) { /* md breakpoint */
+@media (min-width: 768px) {
     .dashboard-view-wrapper {
         flex-direction: row;
     }
 }
-.sidebar { background-color: #1E293B; /* Darker slate, consistent with new modal */ }
+
+.sidebar { background-color: #2d3748; /* Basic theme */ }
 .sidebar-item {
-    color: #94A3B8; /* slate-400 */
+    color: #e2e8f0; /* Basic theme */
     border-radius: 0.375rem;
     transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
 }
-.sidebar-item.active, .sidebar-item:hover {
-    background-color: #334155; /* slate-700 */
-    color: #F1F5F9; /* slate-100 */
+.sidebar-item:hover { /* No .active needed here, just hover */
+    background-color: #4a5568; /* Basic theme */
+    color: white; /* Basic theme */
 }
-.sidebar-item.active {
-    background-color: #3B82F6; /* Primary blue */
+.sidebar-item.active { /* Specific style for active item */
+    background-color: #007bff; /* Basic theme primary blue */
     color: white;
 }
-.main-content-bg { background-color: #1E293B; /* Darker slate */ border-radius: 0.5rem; }
-.analysis-content-area { background-color: #0F172A; /* Even darker slate */ border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem; position: relative; }
+
+.main-content-bg { background-color: #2d3748; border-radius: 0.5rem; /* Basic theme */ }
+.analysis-content-area { background-color: #1f2937; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem; position: relative; /* Basic theme */ }
 .analysis-block { display: none; }
 .analysis-block.active { display: block; }
-.title-and-navigation-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; color: #F1F5F9;}
+
+.title-and-navigation-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    color: #e2e8f0; /* Basic theme text color */
+}
 .analysis-navigation-arrows { display: flex; gap: 0.5rem; }
 .nav-arrow {
-    background-color: #334155; /* slate-700 */
-    color: #94A3B8; /* slate-400 */
+    background-color: #4a5568; /* Basic theme */
+    color: #e2e8f0; /* Basic theme */
     padding: 0.5rem 0.75rem; border-radius: 0.375rem; cursor: pointer; font-size: 1.25rem; line-height: 1; transition: background-color 0.2s ease-in-out; border: none;
 }
-.nav-arrow:hover:not(:disabled) { background-color: #475569; /* slate-600 */ color: #F1F5F9; }
-.nav-arrow:disabled { background-color: #1E293B; /* slate-800 */ color: #475569; /* slate-600 */ cursor: not-allowed; }
+.nav-arrow:hover:not(:disabled) { background-color: #718096; /* Basic theme */ }
+.nav-arrow:disabled { background-color: #374151; color: #6b7280; cursor: not-allowed; /* Basic theme */ }
 
 .analysis-question-title {
-    font-size: 1.25rem; font-weight: 600; color: #94A3B8; /* slate-400 */
-    margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #334155; /* slate-700 */
+    font-size: 1.25rem; font-weight: 700; color: #a0aec0; /* Basic theme */
+    margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #4a5568; /* Basic theme */
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .unified-analysis-heading {
-    font-size: 1.125rem; font-weight: 500; color: #60A5FA; /* blue-400 */
+    font-size: 1.125rem; font-weight: 600; color: #90cdf4; /* Basic theme accent */
     margin-bottom: 0.5rem; padding-top: 0.75rem;
 }
 .unified-analysis-heading:first-of-type { padding-top: 0; }
+
 .analysis-content-area p, .analysis-content-area li {
-    font-size: 0.9rem; /* Slightly larger for readability */
-    color: #CBD5E1; /* slate-300 */
-    line-height: 1.7; margin-bottom: 0.75rem;
+    font-size: 0.875rem; /* Basic theme text size */
+    color: #a0aec0; /* Basic theme text color */
+    line-height: 1.6; margin-bottom: 0.5rem;
 }
-.analysis-content-area ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 1rem; }
-.column-name-highlight {
-    background-color: rgba(59, 130, 246, 0.15); /* Light blue background */
-    color: #93C5FD; /* Lighter blue text */
+.analysis-content-area ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.75rem; }
+
+.column-name-highlight { /* For dashboard text content */
+    background-color: rgba(0, 123, 255, 0.1); /* Based on basic theme's #007bff */
+    color: #6cb2eb; /* Lighter shade of basic theme's #007bff */
     padding: 0.1em 0.3em;
     border-radius: 0.25em;
-    font-family: 'Courier New', Courier, monospace; /* Monospace font */
+    font-family: 'Courier New', Courier, monospace;
     font-size: 0.9em;
 }
 
-
-.chat-input-container { background-color: #0F172A; /* Even darker slate */ border-radius: 0.5rem; }
+.chat-input-container { background-color: #1f2937; border-radius: 0.5rem; /* Basic theme */ }
 .chat-input {
-    background-color: #1E293B; /* slate-800 */
-    color: #F1F5F9; /* slate-100 */
-    border: 1px solid #334155; /* slate-700 */
+    background-color: #2d3748; /* Basic theme */
+    color: #e2e8f0; /* Basic theme */
+    border: 1px solid #4a5568; /* Basic theme */
 }
-.chat-input::placeholder { color: #64748B; /* slate-500 */ }
-.chat-button { /* Re-style to match new button system if needed, or keep distinct */
-    background-image: linear-gradient(to right, #3B82F6, #2563EB);
-    color: white;
-    font-weight: 500; /* Match .btn */
-    padding: 0.75rem 1.25rem; /* Adjust padding */
-    border-radius: 0.375rem; /* Match .btn if desired, or keep distinct */
-}
-.chat-button:hover:not(:disabled) {
-    background-image: linear-gradient(to right, #60A5FA, #3B82F6);
-}
-.chat-button:disabled {
-    background: #334155 !important;
-    color: #64748B !important;
-    cursor: not-allowed;
-}
+.chat-input::placeholder { color: #718096; /* Basic theme */ }
 
-
-.bottom-button { /* For "Analizuj Nowy Plik" in sidebar */
-    background-image: linear-gradient(to right, #3B82F6, #2563EB);
+/* Chat button and Bottom button in sidebar using basic theme's primary blue */
+.chat-button, .bottom-button {
+    background-color: #007bff;
     color: white;
     font-weight: 500;
+    padding: 0.75rem 1.25rem;
+    border-radius: 0.375rem;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+    text-align: center; /* Ensure text is centered */
 }
-.bottom-button:hover {
-    background-image: linear-gradient(to right, #60A5FA, #3B82F6);
+.chat-button:hover:not(:disabled), .bottom-button:hover:not(:disabled) {
+    background-color: #0056b3;
+}
+.chat-button:disabled, .bottom-button:disabled {
+    background-color: #4a5568 !important;
+    color: #9ca3af !important;
+    cursor: not-allowed;
+}
+.bottom-button { /* Specific for layout if needed */
+    display: block;
+    width: 100%;
+    margin-top: auto; /* Pushes to bottom if sidebar is flex column */
+}
+/* Remove margin-bottom from .btn if it's used for .bottom-button or .chat-button via NewStyledButton */
+.dashboard-view-wrapper .btn { /* If NewStyledButton is used in dashboard, override its margin */
+    margin-bottom: 0; /* Example: remove general .btn margin for dashboard context */
+}
+.dashboard-view-wrapper .btn + .btn { /* Add margin back if buttons are stacked */
+    margin-top: 0.75rem;
 }
 
-.dynamic-analysis-item {}
+
+.dynamic-analysis-item {} /* Placeholder if needed */
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: #1E293B; border-radius: 10px; } /* Darker track */
-::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; } /* Lighter thumb */
-::-webkit-scrollbar-thumb:hover { background: #64748B; }
+::-webkit-scrollbar-track { background: #2d3748; border-radius: 10px; /* Basic theme */ }
+::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 10px; /* Basic theme */ }
+::-webkit-scrollbar-thumb:hover { background: #718096; /* Basic theme */ }
+
+/* Styles for the old landing page (to be removed or ensured they don't conflict) */
+/* These were previously under .landing-page-view-wrapper, .landing-page-container */
+/* If NewLandingPage.js uses .new-landing-page-body-wrapper, these old ones won't apply to it. */
+/* Ensure any old .btn-cyan, .btn-green etc. are not used or are restyled if needed elsewhere. */
+
+.landing-page-view-wrapper:not(.new-landing-page-body-wrapper) {
+    /* Styles for the OLD landing page if it's still somehow rendered */
+    background-color: #111827;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    width: 100%;
+    padding: 1rem;
+}
+.landing-page-container { /* For OLD landing page */
+    background-color: #1f2937;
+    padding: 2rem 2.5rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+    width: 100%;
+    max-width: 500px;
+    text-align: center;
+}
+/* Old button colors - ensure they are only for old landing page if it exists */
+.landing-page-view-wrapper:not(.new-landing-page-body-wrapper) .btn-cyan { background-color: #06b6d4; color: white; }
+.landing-page-view-wrapper:not(.new-landing-page-body-wrapper) .btn-cyan:hover { background-color: #0891b2; }
+.landing-page-view-wrapper:not(.new-landing-page-body-wrapper) .btn-green { background-color: #10b981; color: white; }
+.landing-page-view-wrapper:not(.new-landing-page-body-wrapper) .btn-green:hover { background-color: #059669; }
+.landing-page-view-wrapper:not(.new-landing-page-body-wrapper) .btn-green:disabled { background-color: #34d399; opacity: 0.6; cursor: not-allowed; }
+.landing-page-view-wrapper:not(.new-landing-page-body-wrapper) .btn-purple { background-color: #8b5cf6; color: white; }
+.landing-page-view-wrapper:not(.new-landing-page-body-wrapper) .btn-purple:hover { background-color: #7c3aed; }
+.landing-page-view-wrapper:not(.new-landing-page-body-wrapper) .btn-magenta { background-color: #d946ef; color: white; }
+.landing-page-view-wrapper:not(.new-landing-page-body-wrapper) .btn-magenta:hover { background-color: #c026d3; }
+
+.landing-page-view-wrapper:not(.new-landing-page-body-wrapper) .or-separator { margin: 1.25rem 0; color: #9ca3af; font-weight: 500; }
+.landing-page-view-wrapper:not(.new-landing-page-body-wrapper) .landing-footer-link {
+    margin-top: 1.5rem;
+    background-color: transparent; color: #9ca3af;
+    font-size: 0.875rem; font-weight: 500; padding: 0.5rem 1rem;
+    max-width: 500px;
+    width: 100%;
+}
+.landing-page-view-wrapper:not(.new-landing-page-body-wrapper) .landing-footer-link:hover { color: #60a5fa; background-color: #374151; }
+.landing-page-view-wrapper:not(.new-landing-page-body-wrapper) .file-name-display { margin-top: 0.5rem; margin-bottom: 1rem; font-size: 0.8rem; color: #9ca3af; min-height: 1.2em; }
+
