@@ -107,7 +107,7 @@ export default async function handler(req, res) {
     console.log(`CSV preprocessed: ${rowCount} rows, ${columnCount} columns.`);
 
     // Zwiększamy próbkę danych dla promptu, jeśli dane są małe, np. do 10-13 wierszy
-    const sampleSizeForPrompt = Math.min(rowCount, 13); // Użyj wszystkich wierszy jeśli jest ich <= 13, wpp 13
+    const sampleSizeForPrompt = Math.min(rowCount, 50); // Użyj wszystkich wierszy jeśli jest ich <= 13, wpp 13
     const sampleDataForSummaryPrompt = cleanedData.slice(0, sampleSizeForPrompt).map(row => 
         Object.fromEntries(Object.entries(row).map(([key, value]) => [key, String(value).slice(0,100)]))
     );
@@ -213,8 +213,8 @@ export default async function handler(req, res) {
       status: "ready_for_topic_analysis", 
     };
 
-    const SMALL_DATASET_THRESHOLD_CELLS = 200; 
-    const SMALL_DATASET_THRESHOLD_JSON_LENGTH = 200000; 
+    const SMALL_DATASET_THRESHOLD_CELLS = 500; 
+    const SMALL_DATASET_THRESHOLD_JSON_LENGTH = 500000; 
     
     let smallDatasetRawDataString = null;
     if (rowCount * columnCount <= SMALL_DATASET_THRESHOLD_CELLS) {
